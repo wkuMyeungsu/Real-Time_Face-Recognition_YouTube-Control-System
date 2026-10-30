@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 device/**/secrets.h
+services/broker/passwd
 
 # Python
 __pycache__/
