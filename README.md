@@ -63,7 +63,7 @@ docker compose exec -it processor python dev/fake_esp32.py
 | 항목 | 값 |
 |---|---|
 | 보드 | Seeed XIAO ESP32S3 (FQBN `esp32:esp32:XIAO_ESP32S3`) |
-| esp32 코어 | 3.0.7 (보드 매니저 URL `https://espressif.github.io/arduino-esp32/package_esp32_index.json`) |
+| esp32 코어 | 3.3.12 (보드 매니저 URL `https://espressif.github.io/arduino-esp32/package_esp32_index.json`) |
 | 라이브러리 | PubSubClient 2.8, ArduinoJson 7.2.1 |
 | Tools → PSRAM | OPI PSRAM (카메라 사용 시) |
 | Tools → Partition Scheme | 모델 크기를 보고 정해 여기에 적는다 |
