@@ -27,6 +27,7 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 | `player` | 재생 화면. 유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, `/mqtt`를 broker로 넘김 | `services/player/` | 이진아 | 127.0.0.1:8080 | `http://player` |
 
 - 메시지 형식: `docs/contracts/README.md`
+- broker 사용법·메시지 보기·접속 문제 해결: `services/broker/README.md`
 - CI 구축 안내: `docs/ci-setup-guide.txt`
 
 ## 실행 (서버)
