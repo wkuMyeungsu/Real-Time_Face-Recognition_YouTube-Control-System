@@ -46,3 +46,14 @@ def test_build_header_rejects_non_numeric_port():
 def test_env_example_has_every_key():
     env = gen_secrets.read_env(Path(gen_secrets.__file__).parent / ".env.example")
     gen_secrets.build_header(env)
+
+
+def test_check_env_flags_empty_and_example_values():
+    example = {"WIFI_SSID": "wifi-name", "WIFI_PASSWORD": "wifi-password", "BROKER_HOST": "192.168.0.99"}
+    env = {**VALID, "WIFI_SSID": "", "WIFI_PASSWORD": "wifi-password"}
+    assert gen_secrets.check_env(env, example) == ["WIFI_SSID", "WIFI_PASSWORD"]
+
+
+def test_check_env_allows_default_port_and_device_id():
+    assert gen_secrets.check_env(VALID, VALID) == ["WIFI_SSID", "WIFI_PASSWORD", "BROKER_HOST"]
+    assert gen_secrets.check_env(VALID, {}) == []
