@@ -4,7 +4,7 @@
 
 - 작성: 박명수 (face-detector)
 - 상태: 팀 합의. 8장 임우진 몫(계약·공통 설정·recorder)은 구현됨, 각 파트 몫은 진행 중 (10장)
-- 확인 기준: dev f3934b0 (PR #12까지 병합)
+- 확인 기준: dev 49644be (PR #15까지 병합)
 - 참고: Day11(10/21) 1~2교시 "Logging 기초·활용"
   (02_lecture/day11_2026-10-21/lab/01-02_log/log_config.py)
 
@@ -426,10 +426,10 @@
   - server는 기기 ID로 쓰지 않는다 (계약 문서 '공통'에 적음).
 
 - 각 파트가 할 일 (tests/features.toml에 todo로 넣음. 구현하면 done으로 바꾼다)
-  - D12 playback-decider: 판정 로그를 zt/<기기>/log/playback-decider로 (fields에 action·reason·seq)
-  - D13 playback-decider: __main__.py의 basicConfig → setup_logging(), uvicorn.run(..., log_config=None)
+  - D14 playback-decider: 판정 로그를 zt/<기기>/log/playback-decider로 (fields에 action·reason·seq)
+  - D15 playback-decider: __main__.py의 basicConfig → setup_logging(), uvicorn.run(..., log_config=None)
   - P9  player: 버튼·playback·유튜브 로그를 zt/<기기>/log/player로 (로거 zt.player.*)
-  - F4  face-detector: LOG 매크로, INFO 이상은 zt/<기기>/log/face-detector로, ping을 받으면 그대로 pong
+  - F4  face-detector: LOG 매크로(PR #15에서 됨), INFO 이상은 zt/<기기>/log/face-detector로, ping을 받으면 그대로 pong
   - face-model: 모델 버전 이름 규칙 (7-2). 기능 테스트는 아직 없음
 
 - 아직 정하지 않은 것

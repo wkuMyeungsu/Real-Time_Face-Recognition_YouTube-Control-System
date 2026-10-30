@@ -51,7 +51,7 @@ grep -E " (WARNING|ERROR|CRITICAL) " logs/zt.log   # 문제만
 
 - 형식: `docs/contracts/README.md`의 log 절. INFO 이상만, 프레임마다가 아니라 5초 요약으로, QoS 0.
 - Python 서비스: `common/log_config.py`를 `app/log_config.py`로 그대로 복사하고 진입점에서 `setup_logging()` (C8이 같은지 검사).
-- 기능 테스트: `tests/features.toml`의 D12·D13(playback-decider), P9(player), F4(face-detector)가 todo로 들어 있다. 구현하면 `done`으로 바꾼다.
+- 기능 테스트: `tests/features.toml`의 D14·D15(playback-decider), P9(player), F4(face-detector)가 todo로 들어 있다. 구현하면 `done`으로 바꾼다.
 
 ## 개발
 

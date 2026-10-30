@@ -35,7 +35,7 @@ PR → server        : compose build → up --wait → services/*/tests 있는 �
 | broker | B1 주고받기, B2 status retain, B3 LWT offline, B4 WebSocket(/mqtt) | `test_broker.py` | 완료 4/4 |
 | recorder | R1 /health, R2 한 줄 형식, R3 log 토픽 그대로·비밀값 가림, R4 face 5초 요약, R5 ping·pong rtt, R6 LWT offline WARNING, R7 broker 로그 | `test_recorder.py` | 완료 7/7 |
 | 계약·설정 | C1~C4 스키마·문서 예시·토픽 표, C5 ESP32 환경 표 = CI·CD, C6 설정 파일, C7 기능 목록, C8 공통 로그 설정 복사본 | `test_contracts.py` | 완료 8/8 |
-| playback-decider | D1 /health, D2 /stats, D3~D6 재생·정지 시간, D7 MIN_SCORE, D8 바뀔 때만·QoS·retain, D9 control 리셋, D10 기기별, D11 틀린 메시지, D12 판정 로그(reason), D13 공통 로그 설정 | `test_playback_decider.py` | 완료 11/13 |
+| playback-decider | D1 /health, D2 /stats, D3~D6 재생·정지 시간, D7 MIN_SCORE, D8 바뀔 때만·QoS·retain, D9 control 리셋, D10 기기별, D11 틀린 메시지, D12 face 끊김 → pause, D13 stop 뒤 침묵, D14 판정 로그(reason), D15 공통 로그 설정 | `test_playback_decider.py` | 완료 13/15 |
 | player | P1 /health, P2 요소 id, P3 /mqtt, P4 연결 표시, P5·P6 시작·중지, P7 ESP32 상태, P8 playback → 유튜브, P9 log 토픽 | `test_player.py` | 완료 7/9 |
 | face-detector | F1 secrets.example.h, F2 부팅 때 FW_VERSION, F3 토픽·LWT, F4 LOG 매크로·log 토픽·ping → pong | `test_face_detector.py` | 완료 3/4 |
 | face-model | M1 Edge Impulse 라이브러리 | `test_face_detector.py` | 0/1 |
