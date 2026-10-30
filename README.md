@@ -72,6 +72,8 @@ docker compose exec -it playback-decider python dev/fake_face_detector.py
 
 player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face`를 보내기 시작한다. 터미널에서 Enter를 칠 때마다 얼굴 있음/없음이 바뀐다.
 
+영상은 player 위쪽 입력칸에 유튜브 주소나 영상 ID를 넣고 **불러오기**를 누르거나, 주소 뒤에 `?v=<영상 ID>`를 붙여 고른다 (마지막으로 고른 영상은 브라우저가 기억한다). 재생·정지는 판정(`playback`)대로만 한다.
+
 ## 실행 (ESP32)
 
 ### 하드웨어
