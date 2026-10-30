@@ -2,6 +2,17 @@
 
 Edge Impulse에서 만든 얼굴 감지 모델과 그 기록. face-detector가 이 폴더의 결과물을 받아 ESP32에서 실행한다.
 
+## 스케치
+
+| 파일 | 하는 일 |
+|---|---|
+| `face-model.ino` | 모델만 단독 실행. 결과를 시리얼(115200)로 출력 |
+| `web-demo/web-demo.ino` | 시연용. Wi-Fi에 붙어 웹서버를 띄우고, 브라우저에 카메라 화면 + 얼굴 박스를 보여 준다 (MQTT 없음) |
+
+공통 준비: Edge Impulse에서 받은 .zip을 Sketch → Include Library → Add .ZIP Library로 설치 (커밋하지 않음). Tools → Board XIAO_ESP32S3, PSRAM **OPI PSRAM**.
+
+`web-demo`는 `secrets.example.h`를 같은 폴더에 `secrets.h`로 복사해 Wi-Fi(2.4GHz)를 채운 뒤 업로드한다. 시리얼에 나온 `http://<IP>/`를 같은 Wi-Fi의 PC·휴대폰 브라우저로 연다.
+
 ## face-detector에 넘기는 것
 
 | 항목 | 값 |
