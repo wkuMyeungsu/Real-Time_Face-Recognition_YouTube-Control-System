@@ -177,12 +177,12 @@ status = "done"
 [D14]
 part = "playback-decider"
 title = "판정 로그를 log 토픽으로 (action·reason·seq)"
-status = "todo"
+status = "done"
 
 [D15]
 part = "playback-decider"
 title = "공통 로그 설정 (setup_logging, /health 요청 로그 끔)"
-status = "todo"
+status = "done"
 
 
 # ── player ────────────────────────────────────────
