@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "status: face-detector → player (retain, offline은 LWT)",
+  "type": "object",
+  "required": [
+    "state"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "enum": [
+        "running",
+        "idle",
+        "offline"
+      ]
+    },
+    "fw": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "if": {
+    "properties": {
+      "state": {
+        "enum": [
+          "running",
+          "idle"
+        ]
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "state",
+      "fw"
+    ]
+  }
+}

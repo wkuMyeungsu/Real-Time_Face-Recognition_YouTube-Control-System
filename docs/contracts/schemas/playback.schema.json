@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "playback: playback-decider → player",
+  "type": "object",
+  "required": [
+    "action"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "play",
+        "pause"
+      ]
+    }
+  }
+}
