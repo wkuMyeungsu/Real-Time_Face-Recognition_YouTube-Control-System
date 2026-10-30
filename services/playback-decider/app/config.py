@@ -1,6 +1,6 @@
 import os
 
-SERVICE_NAME = os.environ.get("SERVICE_NAME", "processor")
+SERVICE_NAME = os.environ.get("SERVICE_NAME", "playback-decider")
 PORT = int(os.environ.get("PORT", "8001"))
 
 # 컨테이너 안에서는 broker:1883. PC에서 직접 돌릴 때는 localhost.

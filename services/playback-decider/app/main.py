@@ -1,4 +1,4 @@
-"""zt/+/face를 받아 Decider에 넣고, 명령이 나오면 zt/<기기>/player로 보낸다."""
+"""zt/+/face를 받아 Decider에 넣고, 명령이 나오면 zt/<기기>/playback으로 보낸다."""
 
 import json
 import logging
@@ -14,7 +14,7 @@ from .decider import Decider
 log = logging.getLogger(config.SERVICE_NAME)
 
 deciders: dict[str, Decider] = {}
-stats = {"face_msgs": 0, "bad_msgs": 0, "player_sent": 0}
+stats = {"face_msgs": 0, "bad_msgs": 0, "playback_sent": 0}
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=config.SERVICE_NAME)
 
@@ -48,8 +48,8 @@ def on_message(client, userdata, msg):
 
     action = decider.update(face, score, int(time.monotonic() * 1000))
     if action:
-        client.publish(f"zt/{device}/player", json.dumps({"action": action}), qos=1)
-        stats["player_sent"] += 1
+        client.publish(f"zt/{device}/playback", json.dumps({"action": action}), qos=1)
+        stats["playback_sent"] += 1
 
 
 @asynccontextmanager

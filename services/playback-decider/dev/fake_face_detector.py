@@ -1,9 +1,9 @@
-"""보드 없이 ESP32 흉내를 낸다. docs/contracts/README.md 형식대로 status·face를 보낸다.
+"""보드 없이 face-detector(ESP32) 흉내를 낸다. docs/contracts/README.md 형식대로 status·face를 보낸다.
 
-  docker compose exec -it processor python dev/fake_esp32.py      # 컨테이너 안 (broker로 접속)
-  python dev/fake_esp32.py --host localhost                      # PC에서 (pip install paho-mqtt)
+  docker compose exec -it playback-decider python dev/fake_face_detector.py   # 컨테이너 안 (broker로 접속)
+  python dev/fake_face_detector.py --host localhost                            # PC에서 (pip install paho-mqtt)
 
-web에서 시작 버튼을 누르면({"cmd":"start"}) 보내기 시작한다. --running이면 바로 보낸다.
+player에서 시작 버튼을 누르면({"cmd":"start"}) 보내기 시작한다. --running이면 바로 보낸다.
 Enter를 칠 때마다 얼굴 있음/없음이 바뀐다. q + Enter로 끝낸다.
 """
 

@@ -1,5 +1,5 @@
 // 연결 확인용 뼈대: broker 연결, 시작·중지 버튼, 받은 메시지 표시.
-// TODO(web): YouTube IFrame 플레이어를 붙이고 zt/<기기>/player의 action으로 playVideo()·pauseVideo()를 부른다.
+// TODO(player): YouTube IFrame 플레이어를 붙이고 zt/<기기>/playback의 action으로 playVideo()·pauseVideo()를 부른다.
 // 기기는 주소 뒤 ?device=esp32-b로 바꾼다 (기본 esp32-a).
 
 const device = new URLSearchParams(location.search).get("device") || "esp32-a";

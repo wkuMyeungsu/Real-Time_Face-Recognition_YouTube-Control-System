@@ -1,5 +1,5 @@
-// Zero-Touch 펌웨어 뼈대: Wi-Fi·MQTT 연결, status 발행, control(start/stop) 받기.
-// 카메라와 Edge Impulse 추론은 아직 없다. loop()의 TODO 자리에서 publishFace()를 부른다.
+// face-detector: ESP32에서 카메라 프레임마다 face-model을 실행해 얼굴 감지 결과를 보낸다. Wi-Fi·MQTT 연결, status 발행, control(start/stop) 받기.
+// 카메라 촬영과 face-model 실행은 아직 없다. loop()의 TODO 자리에서 publishFace()를 부른다.
 // 메시지 형식은 docs/contracts/README.md.
 
 #include <WiFi.h>
@@ -94,6 +94,6 @@ void loop() {
   mqtt.loop();
 
   if (running) {
-    // TODO(펌웨어·모델): 카메라 한 장 → Edge Impulse 추론 → publishFace(face, score, count, inferMs)
+    // TODO(face-detector): 카메라 한 장 → face-model 실행 → publishFace(face, score, count, inferMs)
   }
 }

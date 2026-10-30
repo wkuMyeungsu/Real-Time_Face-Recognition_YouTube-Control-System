@@ -1,8 +1,8 @@
-# 서비스 1개 = 폴더 1개 = 컨테이너 1개. ESP32 펌웨어는 firmware/에 있고 컨테이너가 아니다.
+# 서비스 1개 = 폴더 1개 = 컨테이너 1개. ESP32 쪽(face-model·face-detector)은 device/에 있고 컨테이너가 아니다.
 # 전체: docker compose up --build -d   내 서비스만: docker compose up --build <서비스>
 # 컨테이너끼리는 서비스 이름으로 부른다. 예: broker:1883  (localhost는 자기 자신)
 # 호스트 포트는 .env로 바꿀 수 있다 (.env.example 참고). .env가 없어도 기본값으로 뜬다.
-# 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). web·processor는 이 PC 안(127.0.0.1)에만 연다.
+# 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). player·playback-decider는 이 PC 안(127.0.0.1)에만 연다.
 name: zero-touch-media
 
 services:
@@ -19,15 +19,15 @@ services:
       retries: 5
       start_period: 3s
 
-  processor:
-    build: ./services/processor
+  playback-decider:
+    build: ./services/playback-decider
     restart: unless-stopped
     env_file:
       - path: .env
         required: false
-    ports: ["127.0.0.1:${PROCESSOR_PORT:-8001}:8001"]
+    ports: ["127.0.0.1:${PLAYBACK_DECIDER_PORT:-8001}:8001"]
     environment:
-      SERVICE_NAME: processor
+      SERVICE_NAME: playback-decider
       PORT: "8001"
       BROKER_HOST: broker
     depends_on:
@@ -39,10 +39,10 @@ services:
       retries: 5
       start_period: 5s
 
-  web:
-    build: ./services/web
+  player:
+    build: ./services/player
     restart: unless-stopped
-    ports: ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    ports: ["127.0.0.1:${PLAYER_PORT:-8080}:80"]
     depends_on:
       broker: { condition: service_healthy }
     healthcheck:

@@ -18,11 +18,11 @@ jobs:
       - if: failure()
         run: docker compose logs
 
-  firmware:
+  face-detector:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp firmware/zero_touch/secrets.example.h firmware/zero_touch/secrets.h
+      - run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
       - uses: arduino/compile-sketches@v1  # 컴파일까지만. 업로드는 각자 PC에서
         with:
           fqbn: esp32:esp32:XIAO_ESP32S3
@@ -36,4 +36,4 @@ jobs:
             - name: ArduinoJson
               version: 7.2.1
           sketch-paths: |
-            - firmware/zero_touch
+            - device/face-detector

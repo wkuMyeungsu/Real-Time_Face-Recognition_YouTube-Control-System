@@ -26,5 +26,5 @@ class Decider:
         - 얼굴이 play_after_ms 이상 이어지면 "play", pause_after_ms 이상 없으면 "pause".
         - 같은 명령은 한 번만 돌려준다 (바뀔 때만).
         """
-        # TODO(processor): 위 규칙대로 구현하고 tests/test_decider.py에 경우별 테스트를 넣는다.
+        # TODO(playback-decider): 위 규칙대로 구현하고 tests/test_decider.py에 경우별 테스트를 넣는다.
         return None
