@@ -224,12 +224,12 @@ status = "done"
 [P8]
 part = "player"
 title = "playback → 유튜브 playVideo·pauseVideo"
-status = "todo"
+status = "done"
 
 [P9]
 part = "player"
 title = "버튼·playback·유튜브 로그를 log 토픽으로 (zt.player.*)"
-status = "todo"
+status = "done"
 
 
 [P10]
