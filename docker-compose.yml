@@ -3,6 +3,8 @@
 # 컨테이너끼리는 서비스 이름으로 부른다. 예: broker:1883  (localhost는 자기 자신)
 # 호스트 포트는 .env로 바꿀 수 있다 (.env.example 참고). .env가 없어도 기본값으로 뜬다.
 # 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). player·playback-decider는 이 PC 안(127.0.0.1)에만 연다.
+# image: CD가 main을 이 이름으로 ghcr.io에 올린다 (TAG = 커밋 SHA). 데모 PC는 빌드하지 않고 받아서 띄운다:
+#   TAG=<커밋 SHA> docker compose pull && TAG=<커밋 SHA> docker compose up -d      (docs/ci-cd.md)
 name: zero-touch-media
 
 services:
@@ -21,6 +23,7 @@ services:
 
   playback-decider:
     build: ./services/playback-decider
+    image: ${REGISTRY:-ghcr.io/wkumyeungsu/real-time_face-recognition_youtube-control-system}/playback-decider:${TAG:-dev}
     restart: unless-stopped
     env_file:
       - path: .env
@@ -41,6 +44,7 @@ services:
 
   player:
     build: ./services/player
+    image: ${REGISTRY:-ghcr.io/wkumyeungsu/real-time_face-recognition_youtube-control-system}/player:${TAG:-dev}
     restart: unless-stopped
     ports: ["127.0.0.1:${PLAYER_PORT:-8080}:80"]
     depends_on:

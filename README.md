@@ -28,7 +28,7 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 
 - 메시지 형식: `docs/contracts/README.md`
 - broker 사용법·메시지 보기·접속 문제 해결: `services/broker/README.md`
-- CI 구축 안내: `docs/ci-setup-guide.txt`
+- CI 구축 안내: `docs/ci-setup-guide.txt`, CI/CD와 기능 테스트: `docs/ci-cd.md`
 
 ## 실행 (서버)
 
@@ -50,6 +50,14 @@ docker compose down                   # 종료
 
 ```powershell
 New-NetFirewallRule -DisplayName "zero-touch mqtt 1883" -Direction Inbound -Protocol TCP -LocalPort 1883 -Action Allow
+```
+
+### 데모 PC (CD가 올린 이미지로)
+
+main에서 CI를 통과한 이미지를 빌드 없이 받아 띄운다 (`docs/ci-cd.md`).
+
+```bash
+TAG=<커밋 SHA> docker compose pull && TAG=<커밋 SHA> docker compose up -d
 ```
 
 ### 보드 없이 확인
@@ -96,3 +104,4 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 - PR 병합은 Create a merge commit만 사용한다. CI가 통과해야 병합한다.
 - `.env`, `secrets.h`, 모델 가중치(`*.onnx` `*.tflite`)는 커밋하지 않는다.
 - 테스트는 자기 폴더의 `tests/`에 둔다 (`services/<서비스>/tests/`, `device/<파트>/tests/`). CI가 있는 것만 돌린다.
+- 계약 문서 기준 기능 테스트는 저장소 루트 `tests/`에 미리 있다. 기능을 완성하면 `tests/features.toml`에서 그 기능을 `done`으로 바꿔 같은 PR에 넣는다. `done`이 된 기능은 다시 깨진 채로 병합될 수 없다 (`docs/ci-cd.md`).
