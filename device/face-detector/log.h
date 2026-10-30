@@ -36,6 +36,16 @@ inline const char* ztLogBaseName(const char* path) {
   return base;
 }
 
+// INFO 이상 로그를 시리얼 말고도 보낼 곳 (MQTT log 토픽). 스케치가 ztSetLogSink()로 건다. DEBUG는 보내지 않는다.
+typedef void (*ZtLogSink)(int level, const char* module, const char* file, int line, const char* msg);
+
+inline ZtLogSink& ztLogSinkRef() {
+  static ZtLogSink sink = nullptr;
+  return sink;
+}
+
+inline void ztSetLogSink(ZtLogSink sink) { ztLogSinkRef() = sink; }
+
 inline void ztLog(int level, const char* module, const char* file, int line, const char* fmt, ...) {
   if (level < ZT_LOG_LEVEL) return;
   char msg[192];
@@ -45,6 +55,7 @@ inline void ztLog(int level, const char* module, const char* file, int line, con
   va_end(args);
   Serial.printf("[up %lums] %-8s zt.face-detector.%s %s:%d %s\n",
                 millis(), ztLogLevelName(level), module, ztLogBaseName(file), line, msg);
+  if (level >= ZT_LOG_INFO && ztLogSinkRef()) ztLogSinkRef()(level, module, ztLogBaseName(file), line, msg);
 }
 
 // module: 로거 이름의 마지막 칸 (boot, wifi, mqtt, camera, infer)

@@ -7,6 +7,8 @@ ESP32에서 카메라 프레임마다 face-model을 실행해 얼굴 감지 결�
 | 파일 | 하는 일 | 커밋 |
 |---|---|---|
 | `face-detector.ino` | 펌웨어 | O |
+| `face_runner.cpp` `.h` | 카메라 촬영 + face-model 실행 | O |
+| `preview_server.cpp` `.h` | 카메라 미리보기 웹 서버 (아래 "카메라 미리보기") | O |
 | `log.h` | 시리얼 로그 매크로 (`LOGD` `LOGI` `LOGW` `LOGE` `LOGC`). 팀 공통 로그 형식 | O |
 | `sketch.yaml` | esp32 코어·라이브러리 버전 (Python의 `requirements.txt` 같은 것) | O |
 | `setup_arduino.py` | 업로드 전 준비: 코어·라이브러리 설치, `secrets.h` 생성, 보드 포트 확인 | O |
@@ -74,6 +76,19 @@ python -m pytest -q tests
 - 기본은 INFO 이상만 찍는다. 자세히 보려면 `#include "log.h"` 앞에 `#define ZT_LOG_LEVEL ZT_LOG_DEBUG`.
 - 레벨 기준: 정상 흐름 INFO, 재연결·신호 약함(`rssi_dbm` < -75)·비정상 재부팅 WARNING, 잘못된 메시지 ERROR.
 - MQTT `log` 토픽으로 보내기와 `ping`/`pong`은 계약 합의 후에 넣는다.
+
+## 카메라 미리보기
+
+얼굴이 카메라에 제대로 들어오는지 볼 때 쓴다. 같은 Wi-Fi에 붙은 PC·폰 브라우저로 `http://<DEVICE_ID>.local/`(예: `http://esp32-a.local/`)을 연다. 이름으로 안 열리면 부팅 로그의 `url_ip`로 연다 (IP는 공유기가 정하므로 그때그때 다르다).
+
+```
+[up 3570ms] INFO     zt.face-detector.camera preview_server.cpp:99 미리보기 켜짐 url=http://esp32-a.local/ url_ip=http://172.30.1.48/
+```
+
+- 노란 점선: 모델이 실제로 보는 영역 (가운데 정사각형을 96×96으로 줄여 넣는다). 얼굴이 이 안에 있어야 한다.
+- 초록 박스와 점수: 모델이 찾은 얼굴 (`FACE_THRESHOLD` 이상). 감지가 켜져 있을(`control` start) 때만 그려진다.
+- 감지가 켜져 있으면 모델이 돌린 그 장을 다시 보내므로 카메라를 따로 찍지 않는다 (감지 속도에 영향 없음). 꺼져 있으면 미리보기가 직접 찍는다.
+- 페이지의 "좌우 반전"을 켜면 거울처럼 보인다 (모델 입력은 그대로).
 
 ## 지금 상태
 
