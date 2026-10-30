@@ -1,0 +1,53 @@
+# 서비스 1개 = 폴더 1개 = 컨테이너 1개. ESP32 펌웨어는 firmware/에 있고 컨테이너가 아니다.
+# 전체: docker compose up --build -d   내 서비스만: docker compose up --build <서비스>
+# 컨테이너끼리는 서비스 이름으로 부른다. 예: broker:1883  (localhost는 자기 자신)
+# 호스트 포트는 .env로 바꿀 수 있다 (.env.example 참고). .env가 없어도 기본값으로 뜬다.
+# 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). web·processor는 이 PC 안(127.0.0.1)에만 연다.
+name: zero-touch-media
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.20
+    restart: unless-stopped
+    ports: ["${MQTT_PORT:-1883}:1883"]
+    volumes:
+      - ./services/broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
+
+  processor:
+    build: ./services/processor
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports: ["127.0.0.1:${PROCESSOR_PORT:-8001}:8001"]
+    environment:
+      SERVICE_NAME: processor
+      PORT: "8001"
+      BROKER_HOST: broker
+    depends_on:
+      broker: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ['PORT'])"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build: ./services/web
+    restart: unless-stopped
+    ports: ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    depends_on:
+      broker: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s

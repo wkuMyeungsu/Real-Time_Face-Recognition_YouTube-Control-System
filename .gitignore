@@ -1,0 +1,30 @@
+# 비밀값
+.env
+.env.*
+!.env.example
+firmware/**/secrets.h
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 모델 가중치·캡처 이미지 (용량 큼)
+*.pt
+*.pth
+*.onnx
+*.tflite
+data/
+frames/
+
+# Arduino 빌드 결과
+build/
+*.bin
+*.elf
+
+# OS·편집기
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

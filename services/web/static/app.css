@@ -1,0 +1,20 @@
+:root {
+  --bg: #f4f6f8;
+  --fg: #17212b;
+  --muted: #5a6672;
+  --line: #d8dee5;
+  --surface: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14191f; --fg: #e3e8ed; --muted: #95a1ad; --line: #2c343d; --surface: #1c232b; }
+}
+body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, "Malgun Gothic", sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; }
+h1 { font-size: 1.25rem; margin: 0; }
+h2 { font-size: 1rem; margin: 24px 0 8px; }
+dl { display: flex; gap: 6px 12px; margin: 0; flex-wrap: wrap; }
+dt { color: var(--muted); }
+dd { margin: 0 12px 0 0; font-weight: 600; }
+.controls { display: flex; gap: 8px; margin: 16px 0; }
+button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); font: inherit; cursor: pointer; }
+#log { margin: 0; padding-left: 2.5em; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; color: var(--muted); }

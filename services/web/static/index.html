@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zero-Touch Media</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <h1>Zero-Touch Media</h1>
+    <dl>
+      <dt>기기</dt><dd id="device"></dd>
+      <dt>broker</dt><dd id="broker">연결 중</dd>
+      <dt>ESP32</dt><dd id="esp32">-</dd>
+    </dl>
+  </header>
+
+  <main>
+    <div class="controls">
+      <button id="start">얼굴 인식 시작</button>
+      <button id="stop">중지</button>
+    </div>
+
+    <!-- TODO(web): 유튜브 URL 입력과 IFrame 플레이어 -->
+    <div id="player"></div>
+
+    <h2>받은 메시지</h2>
+    <ol id="log" reversed></ol>
+  </main>
+
+  <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
