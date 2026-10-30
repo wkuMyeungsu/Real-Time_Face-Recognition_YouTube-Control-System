@@ -85,6 +85,9 @@ function send(cmd, by) {
 //  - 페이지를 처음 열 때(retain)       → started=false라 무시
 //  - 중지를 눌렀을 때(stop에 대한 응답) → 중지 버튼에서 먼저 false로 바꾸므로 무시
 //  - 감지 중 ESP32가 재부팅됐을 때      → started=true라 start를 다시 보낸다
+// 페이지를 열 때(또는 broker 재연결 때) broker가 건네준 retain status가 running이면
+// 이미 감지 중인 것으로 보고 started=true로 이어받는다. 감지 중에 새로고침해도 재부팅 재시작이 계속 동작한다.
+// 실시간으로 온 running은 이어받지 않는다: 시작 → 바로 중지 때 늦게 도착한 running 응답으로 다시 켜지면 안 되므로.
 let started = false;
 let esp32 = null;                 // 마지막으로 받은 status.state
 const RESTART_COOLDOWN_MS = 2000; // start를 다시 보내는 최소 간격
@@ -126,12 +129,16 @@ function maybeRestart() {
   }
 }
 
-function onStatus(text) {
+function onStatus(text, retained) {
   let state;
   try { state = JSON.parse(text).state; } catch {} // retain을 지우는 빈 메시지 등은 버린다
   if (!["running", "idle", "offline"].includes(state)) return;
   esp32 = state;
   if (state === "running") autoStarts = 0;
+  if (retained && state === "running" && !started) {
+    setStarted(true);
+    report("INFO", "mqtt", "onStatus", "ESP32가 이미 감지 중 → 시작 상태로 이어받음");
+  }
   refreshEsp32();
   maybeRestart();
 }
@@ -220,12 +227,12 @@ $("load").onclick = () => loadVideo($("video").value);
 $("video").onkeydown = (e) => { if (e.key === "Enter") loadVideo($("video").value); };
 
 // ── 받은 메시지 ───────────────────────────────────
-client.on("message", (topic, payload) => {
+client.on("message", (topic, payload, packet) => {
   const kind = topic.slice(base.length + 1);
   const text = payload.toString();
   if (kind === "log/player") return; // 내가 보낸 로그는 report()가 이미 화면에 찍었다
   show(`${kind}  ${text}`);
-  if (kind === "status") onStatus(text);
+  if (kind === "status") onStatus(text, Boolean(packet && packet.retain)); // retain: broker가 보관해 둔 마지막 상태
   else if (kind === "playback") onPlayback(text);
 });
 
