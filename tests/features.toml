@@ -232,6 +232,12 @@ title = "버튼·playback·유튜브 로그를 log 토픽으로 (zt.player.*)"
 status = "todo"
 
 
+[P10]
+part = "player"
+title = "시작 상태에서 status idle(ESP32 재부팅) → control start 다시 보냄"
+status = "done"
+
+
 # ── face-detector ─────────────────────────────────
 [F1]
 part = "face-detector"
