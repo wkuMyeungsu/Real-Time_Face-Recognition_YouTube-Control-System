@@ -1,7 +1,7 @@
 // face-model: XIAO ESP32S3에서 Edge Impulse 얼굴 감지 모델(FOMO)만 단독으로 돌려 보는 스케치.
 // 카메라 한 장 → 96×96 RGB로 줄임 → 모델 실행 → 결과를 시리얼로 출력. Wi-Fi·MQTT는 없다 (face-detector 담당).
 // runFaceModel()이 돌려주는 값은 docs/contracts/README.md의 face 메시지 필드(face, score, count, infer_ms)와 같다.
-// 라이브러리: Edge Impulse에서 받은 .zip을 Sketch → Include Library → Add .ZIP Library로 설치 (저장소에 커밋하지 않음).
+// 라이브러리: 이 폴더의 Edge Impulse .zip을 Sketch → Include Library → Add .ZIP Library로 설치.
 
 #include <Face_detection_-_FOMO_-_bigger_dataset_inferencing.h>
 #include "edge-impulse-sdk/dsp/image/image.hpp"
