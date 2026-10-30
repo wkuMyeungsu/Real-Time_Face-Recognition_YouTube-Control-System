@@ -12,6 +12,7 @@ ESP32에서 카메라 프레임마다 face-model을 실행해 얼굴 감지 결�
 | `gen_secrets.py` | `.env`를 읽어 `secrets.h`를 만든다 | O |
 | `secrets.h` | `gen_secrets.py`가 만든 결과. 직접 고치지 않는다 | X |
 | `secrets.example.h` | `secrets.h` 형식 견본. CI는 이걸 복사해 컴파일한다 | O |
+| `tests/` | PC에서 도는 Python 코드(`gen_secrets.py` 등)의 pytest. CI가 자동으로 돌린다 | O |
 
 ## 설정 (.env)
 
@@ -31,6 +32,15 @@ python gen_secrets.py     # → secrets.h
 | `DEVICE_ID` | 보드마다 다르게: `esp32-a`, `esp32-b` |
 
 루트의 `.env`(docker compose용)와는 다른 파일이다. Wi-Fi 비밀번호가 서버 컨테이너로 넘어가지 않도록 따로 둔다.
+
+## 테스트
+
+`tests/`에 `test_*.py`를 넣으면 CI가 돌린다. pytest 말고 필요한 라이브러리는 이 폴더의 `requirements-dev.txt`에 적는다. 펌웨어(`.ino`)는 CI에서 컴파일만 검사한다.
+
+```bash
+cd device/face-detector
+python -m pytest -q tests
+```
 
 ## 지금 상태
 

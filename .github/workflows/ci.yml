@@ -1,7 +1,7 @@
 # PR마다 두 가지를 검사한다. 둘 다 초록불이어야 dev·main에 병합된다 (브랜치 보호 규칙, docs/ci-setup-guide.txt).
 #   server        : compose 빌드 → 전체 기동(healthcheck 통과까지) → tests/ 폴더가 있는 서비스만 pytest
-#   face-detector : device/face-detector 스케치를 XIAO_ESP32S3용으로 컴파일 (업로드는 각자 PC에서)
-# CI는 검사를 담는 그릇이다. 테스트는 자기 서비스 폴더의 tests/에 두면 이 파일을 고치지 않아도 돈다.
+#   face-detector : device/*/tests 가 있는 파트만 pytest → device/face-detector 스케치를 XIAO_ESP32S3용으로 컴파일 (업로드는 각자 PC에서)
+# CI는 검사를 담는 그릇이다. 테스트는 자기 서비스·파트 폴더의 tests/에 두면 이 파일을 고치지 않아도 돈다.
 name: ci
 
 on:
@@ -52,6 +52,20 @@ jobs:
       ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: tests/ 가 있는 device 파트만 pytest (PC에서 도는 Python 코드)
+        run: |
+          for d in device/*/; do
+            if [ -d "$d/tests" ]; then
+              echo "::group::$(basename "$d")"
+              pip install pytest
+              if [ -f "$d/requirements-dev.txt" ]; then pip install -r "$d/requirements-dev.txt"; fi
+              (cd "$d" && python -m pytest -q tests)
+              echo "::endgroup::"
+            fi
+          done
       - uses: arduino/setup-arduino-cli@v2
       - uses: actions/cache@v4   # esp32 코어가 커서 한 번 받은 것을 다시 쓴다
         with:

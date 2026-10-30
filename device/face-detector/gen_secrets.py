@@ -26,17 +26,13 @@ def c_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def main() -> None:
-    env_path = HERE / ".env"
-    if not env_path.exists():
-        sys.exit(f"{env_path}가 없다. .env.example을 .env로 복사해 채운다.")
-    env = read_env(env_path)
-
+def build_header(env: dict[str, str]) -> str:
+    """env 값으로 secrets.h 내용을 만든다. 값이 빠졌거나 포트가 숫자가 아니면 ValueError."""
     missing = [k for k in KEYS if not env.get(k)]
     if missing:
-        sys.exit(f".env에 값이 없다: {', '.join(missing)}")
+        raise ValueError(f".env에 값이 없다: {', '.join(missing)}")
     if not env["BROKER_PORT"].isdigit():
-        sys.exit(f"BROKER_PORT는 숫자여야 한다: {env['BROKER_PORT']}")
+        raise ValueError(f"BROKER_PORT는 숫자여야 한다: {env['BROKER_PORT']}")
 
     lines = [
         "// gen_secrets.py가 .env로 만든 파일. 직접 고치지 말고 .env를 고쳐 다시 만든다. 커밋하지 않는다.",
@@ -46,7 +42,19 @@ def main() -> None:
     for key in KEYS:
         value = env[key] if key in NUMBER_KEYS else c_string(env[key])
         lines.append(f"#define {key:<13} {value}")
-    (HERE / "secrets.h").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def main() -> None:
+    env_path = HERE / ".env"
+    if not env_path.exists():
+        sys.exit(f"{env_path}가 없다. .env.example을 .env로 복사해 채운다.")
+    env = read_env(env_path)
+    try:
+        header = build_header(env)
+    except ValueError as e:
+        sys.exit(str(e))
+    (HERE / "secrets.h").write_text(header, encoding="utf-8")
     print(f"secrets.h 생성: DEVICE_ID={env['DEVICE_ID']} BROKER={env['BROKER_HOST']}:{env['BROKER_PORT']} SSID={env['WIFI_SSID']}")
 
 
