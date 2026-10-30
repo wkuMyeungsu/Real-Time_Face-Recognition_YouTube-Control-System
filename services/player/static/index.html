@@ -13,6 +13,7 @@
       <dt>기기</dt><dd id="device"></dd>
       <dt>broker</dt><dd id="broker">연결 중</dd>
       <dt>ESP32</dt><dd id="esp32">-</dd>
+      <dt>감지</dt><dd id="mode">중지됨</dd>
     </dl>
   </header>
 
@@ -22,7 +23,10 @@
       <button id="stop">중지</button>
     </div>
 
-    <!-- TODO(player): 유튜브 URL 입력과 IFrame 플레이어 -->
+    <div class="video">
+      <input id="video" type="text" placeholder="유튜브 주소 또는 영상 ID" autocomplete="off" spellcheck="false">
+      <button id="load">불러오기</button>
+    </div>
     <div id="player"></div>
 
     <h2>받은 메시지</h2>

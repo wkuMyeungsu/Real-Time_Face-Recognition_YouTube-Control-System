@@ -224,12 +224,12 @@ status = "done"
 [P8]
 part = "player"
 title = "playback → 유튜브 playVideo·pauseVideo"
-status = "todo"
+status = "done"
 
 [P9]
 part = "player"
 title = "버튼·playback·유튜브 로그를 log 토픽으로 (zt.player.*)"
-status = "todo"
+status = "done"
 
 
 [P10]
@@ -276,4 +276,4 @@ status = "done"
 [E2]
 part = "e2e"
 title = "player 시작 버튼 → face → 판정 → 유튜브 재생·정지 (브라우저)"
-status = "todo"
+status = "done"
