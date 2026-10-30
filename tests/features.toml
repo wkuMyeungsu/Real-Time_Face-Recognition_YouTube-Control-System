@@ -276,4 +276,4 @@ status = "done"
 [E2]
 part = "e2e"
 title = "player 시작 버튼 → face → 판정 → 유튜브 재생·정지 (브라우저)"
-status = "todo"
+status = "done"
