@@ -61,12 +61,23 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 
 ## 실행 (ESP32)
 
+### 하드웨어
+
+| 부품 | 모델 |
+|---|---|
+| 보드 | Seeed XIAO ESP32S3 (Wi-Fi 2.4GHz 내장) |
+| 카메라 | OV3660 (XIAO 카메라 커넥터에 연결, 핀 배치는 `CAMERA_MODEL_XIAO_ESP32S3`) |
+| 안테나 | Seeed Studio 2.4G 외부 안테나 (A-02). 보드의 U.FL 단자에 꽂는다 |
+
+### 개발 환경
+
 | 항목 | 값 |
 |---|---|
-| 보드 | Seeed XIAO ESP32S3 (FQBN `esp32:esp32:XIAO_ESP32S3`) |
+| Arduino IDE | 2.3.10 |
+| Tools → Board | XIAO_ESP32S3 (FQBN `esp32:esp32:XIAO_ESP32S3`) |
 | esp32 코어 | 3.3.12 (보드 매니저 URL `https://espressif.github.io/arduino-esp32/package_esp32_index.json`) |
 | 라이브러리 | PubSubClient 2.8, ArduinoJson 7.2.1 |
-| Tools → PSRAM | OPI PSRAM (카메라 사용 시) |
+| Tools → PSRAM | OPI PSRAM (카메라에 필요) |
 | Tools → Partition Scheme | face-model 크기를 보고 정해 여기에 적는다 |
 
 1. `device/face-detector/secrets.example.h`를 같은 폴더에 `secrets.h`로 복사하고 Wi-Fi, PC IP, `DEVICE_ID`를 채운다.
