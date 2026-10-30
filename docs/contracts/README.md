@@ -66,9 +66,15 @@ face-model을 한 번 실행할 때마다 하나. `running`일 때만, 최대 �
 ## playback — playback-decider → player
 
 ```json
-{ "action": "play" }
+{ "action": "play", "seq": 123 }
+{ "action": "pause", "seq": 140 }
 { "action": "pause" }
 ```
+
+| 필드 | 형식 | 뜻 |
+|---|---|---|
+| `action` | `play` `pause` | 재생·정지 |
+| `seq` | 정수 (없어도 됨) | 이 판정의 근거가 된 `face`의 `seq`. 끊겨서 내린 판정은 마지막으로 받은 `face`의 `seq`, `start` 뒤 `face`를 하나도 못 받았으면 없다. 로그에서 face → 판정 → 재생을 한 줄로 잇는 데 쓴다 (`docs/logging-design.txt` 6장 원칙 5) |
 
 - 명령이 바뀔 때만 보낸다. 같은 명령을 연달아 보내지 않는다.
 - `start` 뒤 `face`가 `PAUSE_AFTER_MS` 동안 오지 않으면(face-detector가 멈추거나 끊김) 그동안 얼굴이 없었던 것으로 보고 `pause`를 보낸다.

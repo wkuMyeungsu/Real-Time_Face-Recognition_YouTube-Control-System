@@ -36,9 +36,13 @@ def now_ms() -> int:
     return int(time.monotonic() * 1000)
 
 
-def send(device: str, action: str | None) -> None:
+def send(device: str, action: str | None, seq: int | None = None) -> None:
+    """판정을 playback으로 보낸다. seq는 판정의 근거가 된 face의 seq (계약 playback 절)."""
     if action:
-        client.publish(f"zt/{device}/playback", json.dumps({"action": action}), qos=1)
+        body = {"action": action}
+        if seq is not None:
+            body["seq"] = seq
+        client.publish(f"zt/{device}/playback", json.dumps(body), qos=1)
         stats["playback_sent"] += 1
 
 
@@ -151,7 +155,7 @@ def handle(topic: str, payload: bytes) -> None:
     with lock:
         check_seq(device, seq)
         action = decider_for(device).update(face, score, now_ms(), seq)
-    send(device, action)
+    send(device, action, seq)
 
 
 async def tick_loop():
@@ -159,9 +163,10 @@ async def tick_loop():
     next_flush = time.monotonic() + BAD_SUMMARY_SEC
     while True:
         with lock:
-            actions = [(device, d.tick(now_ms())) for device, d in deciders.items()]
-        for device, action in actions:
-            send(device, action)
+            # seq는 판정을 내린 그 시점의 last_seq를 lock 안에서 같이 꺼낸다
+            actions = [(device, d.tick(now_ms()), d.last_seq) for device, d in deciders.items()]
+        for device, action, seq in actions:
+            send(device, action, seq)
         if time.monotonic() >= next_flush:
             flush_bad()
             next_flush += BAD_SUMMARY_SEC
