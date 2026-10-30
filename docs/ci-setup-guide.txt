@@ -1,0 +1,136 @@
+CI 뼈대 구축 안내 (broker 파트: 임우진)
+==========================================
+
+목표
+----
+PR이 올라올 때마다 아래 두 가지를 자동으로 검사하고, 통과한 PR만 dev·main에 병합되게 한다.
+
+  1. server        : docker compose로 broker·playback-decider·player를 빌드하고 띄운 뒤,
+                     tests/ 폴더가 있는 서비스만 pytest를 돌린다.
+  2. face-detector : device/face-detector 스케치가 XIAO_ESP32S3용으로 컴파일되는지 본다 (업로드는 하지 않음).
+
+CI는 구현을 검사하는 코드가 아니라 검사를 담을 그릇이다. 테스트가 0개여도 통과하고,
+팀원이 자기 서비스 폴더에 tests/를 추가하는 순간 검사 대상이 된다. ci.yml은 한 번 쓰면 거의 고치지 않는다.
+
+
+지금 저장소 상태 (CI가 기대는 것)
+--------------------------------
+- docker-compose.yml: 서비스 3개 모두 healthcheck가 있다. "docker compose up -d --wait"가 healthy까지 기다린다.
+    broker            : mosquitto_sub로 $SYS/broker/version 확인
+    playback-decider  : GET /health
+    player            : GET /health (nginx)
+- .env.example: CI에서는 이걸 .env로 복사해서 쓴다. .env가 없어도 기본값으로 뜬다.
+- services/playback-decider/tests/: pytest 1개 (health). 이미지 안에 pytest가 들어 있어서
+  "docker compose run --rm --no-deps playback-decider pytest -q"로 돌릴 수 있다.
+- device/face-detector/secrets.h는 커밋하지 않는다(.gitignore). CI에서는 secrets.example.h를 복사해 컴파일한다.
+- ESP32 빌드 환경 (README의 "실행 (ESP32)" 표와 같은 값):
+    FQBN           esp32:esp32:XIAO_ESP32S3
+    esp32 코어     3.3.12
+    라이브러리     PubSubClient 2.8, ArduinoJson 7.2.1
+
+
+순서
+----
+1) dev에서 작업 브랜치를 만든다.
+     git switch dev && git pull
+     git switch -c chore/broker/ci
+
+2) .github/workflows/ci.yml 을 만든다. 아래 예시는 박명수 PC에서 각 단계를 손으로 돌려 본 내용이다
+   (compose 기동·pytest·arduino-cli 컴파일 모두 통과). GitHub Actions에서는 아직 한 번도 돌려 보지 않았다.
+
+------------------------------------------------------------------------
+name: ci
+on: [pull_request, push]
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build
+      - run: docker compose up -d --wait  # healthcheck 통과까지 기다린다
+      - name: tests/ 가 있는 서비스만 pytest
+        run: |
+          for d in services/*/; do
+            s=$(basename "$d")
+            if [ -d "$d/tests" ]; then docker compose run --rm --no-deps "$s" pytest -q; fi
+          done
+      - if: failure()
+        run: docker compose logs
+
+  face-detector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
+      - uses: arduino/compile-sketches@v1  # 컴파일까지만. 업로드는 각자 PC에서
+        with:
+          fqbn: esp32:esp32:XIAO_ESP32S3
+          platforms: |
+            - name: esp32:esp32
+              source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+              version: 3.3.12
+          libraries: |
+            - name: PubSubClient
+              version: 2.8
+            - name: ArduinoJson
+              version: 7.2.1
+          sketch-paths: |
+            - device/face-detector
+------------------------------------------------------------------------
+
+3) 올리기 전에 내 PC에서 server 잡과 같은 명령을 돌려 본다.
+     cp .env.example .env
+     docker compose build
+     docker compose up -d --wait
+     docker compose run --rm --no-deps playback-decider pytest -q
+     docker compose down
+
+   face-detector 잡은 Arduino IDE에서 device/face-detector/face-detector.ino를 "확인(컴파일)"하면 같다.
+   (먼저 secrets.example.h를 secrets.h로 복사)
+
+4) 커밋·push 후 dev로 PR을 올린다.
+     git add .github/workflows/ci.yml
+     git commit -m "chore(broker): PR마다 서버 기동·테스트와 face-detector 컴파일 검사"
+     git push -u origin chore/broker/ci
+     gh pr create --base dev --title "chore(broker): CI 뼈대" --body "server·face-detector 두 잡"
+
+   PR 화면의 Checks 탭에서 server, face-detector 두 잡이 초록불인지 확인한다.
+   face-detector 잡은 esp32 코어를 내려받느라 처음에 몇 분 걸린다.
+
+5) PR을 병합한다 (Create a merge commit).
+
+6) 브랜치 보호 규칙을 건다. 저장소 Settings 권한이 있는 사람(저장소 주인 박명수)이 하거나 권한을 받아서 한다.
+   CI가 한 번 돌고 나야 체크 이름(server, face-detector)이 목록에 나타나므로 5) 다음에 한다.
+
+   Settings → Branches → Add branch protection rule (main, dev 각각)
+     - Require a pull request before merging
+     - Require status checks to pass before merging
+         → server, face-detector 선택
+     - Require branches to be up to date before merging
+
+   Settings → General → Pull Requests
+     - Allow merge commits 만 켜고, squash merging · rebase merging은 끈다.
+
+7) 팀에 두 줄만 알린다.
+     - 테스트는 자기 서비스 폴더의 tests/ 에 둔다. CI가 있는 것만 돌린다.
+     - CI가 초록불이어야 병합된다.
+
+
+나중에 더할 것
+--------------
+- face-model이 Edge Impulse 라이브러리를 저장소에 넣으면, face-detector 잡의 libraries에 로컬 경로를 추가한다.
+    libraries: |
+      - name: PubSubClient
+        version: 2.8
+      - name: ArduinoJson
+        version: 7.2.1
+      - source-path: device/face-model/<라이브러리 폴더>
+  라이브러리를 커밋하지 않기로 하면 face-detector 잡은 모델 없이 컴파일되는 범위까지만 검사할 수 있다.
+
+- 통합이 끝나면 server 잡에 smoke test 한 단계를 더한다.
+  가짜 face-detector(services/playback-decider/dev/fake_face_detector.py)로 start → face 송신 →
+  zt/<기기>/playback 메시지가 나오는지 확인하는 스크립트를 tests/ 밖(예: tests/smoke/)에 두고 돌린다.
+
+- CD(이미지·펌웨어 .bin 배포)는 통합이 끝나고 데모 PC가 정해진 뒤에 cd.yml로 따로 붙인다.

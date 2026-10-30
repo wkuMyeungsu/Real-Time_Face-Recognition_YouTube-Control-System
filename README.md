@@ -20,13 +20,14 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 
 | 파트 | 하는 일 | 폴더 | 담당 | 호스트 포트 | 컨테이너 주소 |
 |---|---|---|---|---|---|
-| `face-model` | 얼굴 감지 모델. Edge Impulse에서 만들고 threshold를 정해 Arduino 라이브러리로 내보낸다 | `device/face-model/` | | — | — |
-| `face-detector` | 얼굴 감지 실행. ESP32에서 카메라 → face-model 실행 → 결과 송신, 시작·중지 명령 수신 | `device/face-detector/` | | — | — |
-| `broker` | MQTT 브로커(Mosquitto)와 실행 환경(compose, `.env`, CI, 계약 문서) | `services/broker/`, 저장소 루트 | | 1883 | `broker:1883`, `broker:9001`(WebSocket) |
-| `playback-decider` | 재생 판정. face 결과를 모아 재생·정지를 정한다 | `services/playback-decider/` | | 127.0.0.1:8001 | `http://playback-decider:8001` |
-| `player` | 재생 화면. 유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, `/mqtt`를 broker로 넘김 | `services/player/` | | 127.0.0.1:8080 | `http://player` |
+| `face-model` | 얼굴 감지 모델. Edge Impulse에서 만들고 threshold를 정해 Arduino 라이브러리로 내보낸다 | `device/face-model/` | 김대희 | — | — |
+| `face-detector` | 얼굴 감지 실행. ESP32에서 카메라 → face-model 실행 → 결과 송신, 시작·중지 명령 수신 | `device/face-detector/` | 박명수 | — | — |
+| `broker` | MQTT 브로커(Mosquitto)와 실행 환경(compose, `.env`, CI, 계약 문서) | `services/broker/`, 저장소 루트 | 임우진 | 1883 | `broker:1883`, `broker:9001`(WebSocket) |
+| `playback-decider` | 재생 판정. face 결과를 모아 재생·정지를 정한다 | `services/playback-decider/` | 김도은 | 127.0.0.1:8001 | `http://playback-decider:8001` |
+| `player` | 재생 화면. 유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, `/mqtt`를 broker로 넘김 | `services/player/` | 이진아 | 127.0.0.1:8080 | `http://player` |
 
 - 메시지 형식: `docs/contracts/README.md`
+- CI 구축 안내: `docs/ci-setup-guide.txt`
 
 ## 실행 (서버)
 
