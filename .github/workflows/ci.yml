@@ -89,6 +89,13 @@ jobs:
         with:
           path: ~/.arduino15
           key: arduino-esp32-3.3.12-PubSubClient-2.8-ArduinoJson-7.2.1
+      - uses: actions/cache@v4   # 컴파일 결과(코어·Edge Impulse 라이브러리 .o). 모델 라이브러리는 소스 1,479개라 처음부터 컴파일하면 몇 분 걸린다
+        with:
+          path: ~/.cache/arduino
+          key: arduino-build-esp32-3.3.12-${{ hashFiles('device/face-model/*.zip') }}-${{ github.sha }}
+          restore-keys: |
+            arduino-build-esp32-3.3.12-${{ hashFiles('device/face-model/*.zip') }}-
+            arduino-build-esp32-3.3.12-
       - name: esp32 코어·라이브러리 설치 (README 개발 환경 표와 같은 버전)
         run: |
           arduino-cli core update-index --additional-urls "$ESP32_INDEX" 2>&1 | tee /tmp/arduino.log
