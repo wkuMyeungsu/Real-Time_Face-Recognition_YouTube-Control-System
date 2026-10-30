@@ -242,6 +242,11 @@ part = "player"
 title = "시작 상태에서 status idle(ESP32 재부팅) → control start 다시 보냄"
 status = "done"
 
+[P11]
+part = "player"
+title = "페이지를 열 때 retain status가 running이면 시작 상태로 이어받음 (새로고침 뒤에도 재부팅 재시작)"
+status = "done"
+
 
 # ── face-detector ─────────────────────────────────
 [F1]

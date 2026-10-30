@@ -32,7 +32,7 @@ log·ping·pong은 디버깅용이다. 보내지 않아도 서비스는 동작�
 
 - face-detector는 `start`를 받으면 감지를 시작하고 `face`를 보낸다. `stop`이면 멈춘다. 받을 때마다 `status`를 다시 보낸다.
 - playback-decider는 둘 다 받으면 그 기기의 판정 상태를 처음으로 돌린다. `stop` 뒤에는 다음 `start`까지 `playback`을 보내지 않는다.
-- ESP32가 재부팅되면 `idle`로 시작한다. 다시 `start`를 보내야 한다. player는 시작을 누른 뒤(중지 전) `idle`을 받으면 `start`를 자동으로 다시 보낸다 (2초에 한 번까지).
+- ESP32가 재부팅되면 `idle`로 시작한다. 다시 `start`를 보내야 한다. player는 시작을 누른 뒤(중지 전) `idle`을 받으면 `start`를 자동으로 다시 보낸다 (2초에 한 번까지). 페이지를 열 때 retain으로 받은 status가 `running`이면 이미 시작된 것으로 보고 이어받는다.
 
 ## face — face-detector → playback-decider
 

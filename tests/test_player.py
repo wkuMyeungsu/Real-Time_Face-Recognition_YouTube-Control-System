@@ -1,4 +1,4 @@
-"""player (P1~P10). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
+"""player (P1~P11). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
 
 기준: README의 player 설명("유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, /mqtt를 broker로 넘김"),
 docs/contracts/README.md의 control·status·playback 절, index.html의 요소 id.
@@ -171,3 +171,38 @@ def test_no_restart_after_stop(page, cfg):
     pg.click("#start")
     pg.click("#stop")
     assert not _idle_sends_start(pg, cfg, device, expect=False), "중지 뒤 idle에 start를 다시 보냄"
+
+
+@pytest.mark.feature("P11")
+def test_resume_running_after_reload(player, browser, cfg):
+    """감지 중(retain status running)에 페이지를 열면 시작 상태로 이어받고, 그 뒤 재부팅 idle에 start를 다시 보낸다."""
+    device = unique_device("p11")
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p11")
+    assert probe.start()
+    probe.publish(topic(device, "status"), {"state": "running", "fw": "0.1.0"}, retain=True)
+    context, pg = open_player(browser, player, device)
+    try:
+        connected(pg)
+        pg.wait_for_function("document.getElementById('mode').textContent.includes('감지 중')", timeout=3000)
+        probe.subscribe(topic(device, "control"))
+        probe.drain()
+        probe.publish(topic(device, "status"), {"state": "idle", "fw": "0.1.0"}, retain=True)
+        got = probe.next(topic(device, "control"), lambda m: m.get("cmd") == "start", timeout=3)
+        assert got, "감지 중에 연 페이지가 재부팅 idle에 start를 다시 보내지 않음"
+    finally:
+        probe.stop()
+        context.close()
+        clear_retained(player, device)
+
+
+@pytest.mark.feature("P11")
+def test_no_resume_from_idle(page, cfg):
+    """retain status가 idle이면(페이지만 연 상태) 시작 상태가 아니다."""
+    pg, device = page
+    connected(pg)
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p11b")
+    assert probe.start()
+    probe.publish(topic(device, "status"), {"state": "idle", "fw": "0.1.0"}, retain=True)
+    pg.wait_for_function("document.getElementById('esp32').textContent.includes('idle')", timeout=3000)
+    probe.stop()
+    assert pg.text_content("#mode") == "중지됨"
