@@ -89,7 +89,7 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 | Tools → PSRAM | OPI PSRAM (카메라에 필요) |
 | Tools → Partition Scheme | face-model 크기를 보고 정해 여기에 적는다 |
 
-1. `device/face-detector/secrets.example.h`를 같은 폴더에 `secrets.h`로 복사하고 Wi-Fi, PC IP, `DEVICE_ID`를 채운다.
+1. `device/face-detector/.env.example`을 같은 폴더에 `.env`로 복사해 Wi-Fi(2.4GHz), PC IP, `DEVICE_ID`를 채우고, 그 폴더에서 `python gen_secrets.py`로 `secrets.h`를 만든다. `.env`를 고치면 다시 실행한다. 자세한 내용은 `device/face-detector/README.md`.
 2. Arduino IDE에서 `device/face-detector/face-detector.ino`를 열어 업로드한다.
 3. 시리얼 모니터(115200)에 `[boot] FW_VERSION=…`과 `[mqtt] 연결됨`이 나오고, player의 ESP32 상태가 `idle`로 바뀌면 연결된 것이다.
 
@@ -102,5 +102,5 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 - 커밋 메시지: `<타입>(<파트>): <요약>`. 예: `feat(playback-decider): 재생·정지 판정 구현`
 - PR 병합은 Create a merge commit만 사용한다. CI가 통과해야 병합한다.
 - `.env`, `secrets.h`, 모델 가중치(`*.onnx` `*.tflite`)는 커밋하지 않는다.
-- 테스트는 자기 서비스 폴더의 `tests/`에 둔다. CI가 있는 것만 돌린다.
+- 테스트는 자기 폴더의 `tests/`에 둔다 (`services/<서비스>/tests/`, `device/<파트>/tests/`). CI가 있는 것만 돌린다.
 - 계약 문서 기준 기능 테스트는 저장소 루트 `tests/`에 미리 있다. 기능을 완성하면 `tests/features.toml`에서 그 기능을 `done`으로 바꿔 같은 PR에 넣는다. `done`이 된 기능은 다시 깨진 채로 병합될 수 없다 (`docs/ci-cd.md`).

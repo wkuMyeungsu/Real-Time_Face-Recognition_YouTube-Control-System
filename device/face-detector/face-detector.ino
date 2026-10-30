@@ -5,7 +5,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "secrets.h"  // secrets.example.h를 복사해 만든다 (커밋하지 않음)
+#include "secrets.h"  // .env를 채운 뒤 python gen_secrets.py로 만든다 (커밋하지 않음)
 
 #define FW_VERSION "0.1.0"
 

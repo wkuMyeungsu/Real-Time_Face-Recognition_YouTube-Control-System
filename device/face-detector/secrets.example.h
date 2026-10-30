@@ -1,4 +1,4 @@
-// 이 파일을 같은 폴더에 secrets.h로 복사해서 자기 값으로 채운다. secrets.h는 커밋하지 않는다.
+// secrets.h 형식 견본. 실제 secrets.h는 .env를 채운 뒤 python gen_secrets.py로 만든다 (커밋하지 않음). CI는 이 파일을 복사해 컴파일한다.
 #pragma once
 
 #define WIFI_SSID     "wifi-name"
