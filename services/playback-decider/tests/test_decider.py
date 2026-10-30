@@ -73,3 +73,54 @@ def test_zero_delay_acts_immediately():
     d = Decider(play_after_ms=0, pause_after_ms=0, min_score=0.6)
     assert d.update(True, 0.9, 0) == "play"
     assert d.update(False, 0.0, 100) == "pause"
+
+
+# ---- tick(): face 메시지가 끊겨도 pause ----
+
+@pytest.fixture
+def started():
+    d = Decider(play_after_ms=500, pause_after_ms=1500, min_score=0.6)
+    d.reset(running=True, now_ms=0)
+    return d
+
+
+def test_tick_pauses_when_no_message_after_start(started):
+    assert started.tick(1499) is None
+    assert started.tick(1500) == "pause"
+    assert started.tick(1600) is None  # 같은 명령은 한 번만
+
+
+def test_tick_pauses_when_messages_stop(started):
+    feed(started, True, 0.9, 0, 1000)  # 얼굴 있을 때만 보내다가 끊김
+    assert started.tick(2499) is None
+    assert started.tick(2500) == "pause"
+
+
+def test_tick_pauses_after_last_no_face(started):
+    feed(started, True, 0.9, 0, 1000)
+    assert started.update(False, 0.0, 1200) is None  # 얼굴 없음 한 번 오고 끊김
+    assert started.tick(2699) is None
+    assert started.tick(2700) == "pause"
+
+
+def test_tick_quiet_while_messages_come(started):
+    for t in range(0, 5000, 200):
+        started.update(True, 0.9, t)
+        assert started.tick(t + 100) is None
+
+
+def test_play_again_after_timeout_pause(started):
+    feed(started, True, 0.9, 0, 1000)
+    assert started.tick(2600) == "pause"
+    assert started.update(True, 0.9, 5000) is None
+    assert started.update(True, 0.9, 5500) == "play"
+
+
+def test_tick_does_nothing_before_start(d):
+    assert d.tick(10_000) is None
+
+
+def test_tick_does_nothing_after_stop(started):
+    feed(started, True, 0.9, 0, 1000)
+    started.reset(running=False, now_ms=1100)
+    assert started.tick(10_000) is None
