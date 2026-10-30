@@ -155,6 +155,12 @@ def decider(broker):
 
 
 @pytest.fixture(scope="session")
+def recorder(broker):
+    _need("recorder", _health(f"http://{broker['host']}:{broker['recorder_port']}/health"), "docker compose up --build recorder")
+    return broker
+
+
+@pytest.fixture(scope="session")
 def player(broker):
     _need("player", _health(f"http://{broker['host']}:{broker['player_port']}/health"), "docker compose up --build player")
     return broker

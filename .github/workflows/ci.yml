@@ -89,19 +89,43 @@ jobs:
         with:
           path: ~/.arduino15
           key: arduino-esp32-3.3.12-PubSubClient-2.8-ArduinoJson-7.2.1
+      - uses: actions/cache@v4   # 컴파일 결과(코어·Edge Impulse 라이브러리 .o). 모델 라이브러리는 소스 1,479개라 처음부터 컴파일하면 몇 분 걸린다
+        with:
+          path: ~/.cache/arduino
+          key: arduino-build-esp32-3.3.12-${{ hashFiles('device/face-model/*.zip') }}-${{ github.sha }}
+          restore-keys: |
+            arduino-build-esp32-3.3.12-${{ hashFiles('device/face-model/*.zip') }}-
+            arduino-build-esp32-3.3.12-
       - name: esp32 코어·라이브러리 설치 (README 개발 환경 표와 같은 버전)
         run: |
           arduino-cli core update-index --additional-urls "$ESP32_INDEX" 2>&1 | tee /tmp/arduino.log
           arduino-cli core install esp32:esp32@3.3.12 --additional-urls "$ESP32_INDEX" 2>&1 | tee -a /tmp/arduino.log
           arduino-cli lib install PubSubClient@2.8 ArduinoJson@7.2.1 2>&1 | tee -a /tmp/arduino.log
+      - name: 모델 라이브러리 설치 (device/face-model/*.zip을 libraries 폴더에 푼다. IDE의 Add .ZIP Library와 같은 일)
+        run: |
+          mkdir -p ~/Arduino/libraries
+          for z in device/face-model/*.zip; do
+            [ -e "$z" ] || { echo "모델 zip 없음"; break; }
+            unzip -q -o "$z" -d ~/Arduino/libraries
+          done
+          arduino-cli lib list 2>&1 | tee -a /tmp/arduino.log
       - name: secrets.h 준비 (커밋하지 않는 파일이라 예시로 대신)
         run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
       - name: 컴파일 (업로드는 각자 PC에서)
         run: arduino-cli compile --fqbn "$FQBN" --warnings default device/face-detector 2>&1 | tee -a /tmp/arduino.log
+      - name: face-model 스케치 컴파일 (모델 zip이 있을 때만. 새 모델로도 컴파일되는지)
+        run: |
+          if ! ls device/face-model/*.zip >/dev/null 2>&1; then echo "모델 zip 없음, 건너뜀"; exit 0; fi
+          cp device/face-model/web-demo/secrets.example.h device/face-model/web-demo/secrets.h
+          for d in device/face-model device/face-model/web-demo; do
+            echo "::group::$d"
+            arduino-cli compile --fqbn "$FQBN" --warnings default "$d" 2>&1 | tee -a /tmp/arduino.log
+            echo "::endgroup::"
+          done
       - name: 실패하면 오류를 PR 화면에 남기기
         if: failure()
         run: |
           msg=$(grep -E "error|Error|fatal|not found|undefined" /tmp/arduino.log | tail -n 20 || true)
           [ -n "$msg" ] || msg=$(tail -n 20 /tmp/arduino.log)
           msg="${msg//'%'/'%25'}"; msg="${msg//$'\r'/'%0D'}"; msg="${msg//$'\n'/'%0A'}"
-          echo "::error title=face-detector 컴파일 실패::$msg"
+          echo "::error title=ESP32 스케치 컴파일 실패::$msg"

@@ -15,7 +15,9 @@ import paho.mqtt.client as mqtt
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS = ROOT / "docs" / "contracts"
-TOPICS = ("control", "face", "status", "playback")
+DEVICE_TOPICS = ("control", "face", "status", "playback")   # 서비스가 주고받는 토픽
+TOPICS = DEVICE_TOPICS + ("log", "ping", "pong")            # 계약 문서의 모든 토픽 (log·ping·pong은 디버깅용)
+LOGS = ROOT / "logs"                                         # recorder가 쓰는 곳 (docker-compose.yml의 ./logs)
 
 
 def read_env(path: Path) -> dict:
@@ -33,15 +35,16 @@ def settings() -> dict:
     """기준값: .env가 있으면 .env, 없으면 .env.example (CI는 .env.example을 복사해 쓴다)."""
     v = read_env(ROOT / ".env.example")
     v.update(read_env(ROOT / ".env"))
-    v.update({k: os.environ[k] for k in ("MQTT_PORT", "PLAYER_PORT", "PLAYBACK_DECIDER_PORT", "PLAY_AFTER_MS", "PAUSE_AFTER_MS", "MIN_SCORE") if k in os.environ})
+    v.update({k: os.environ[k] for k in ("MQTT_PORT", "PLAYER_PORT", "PLAYBACK_DECIDER_PORT", "RECORDER_PORT", "PLAY_AFTER_MS", "PAUSE_AFTER_MS", "MIN_SCORE") if k in os.environ})
     return {
         "host": os.environ.get("ZT_TEST_HOST", "localhost"),
         "mqtt_port": int(v.get("MQTT_PORT", 1883)),
         "player_port": int(v.get("PLAYER_PORT", 8080)),
         "decider_port": int(v.get("PLAYBACK_DECIDER_PORT", 8001)),
+        "recorder_port": int(v.get("RECORDER_PORT", 8002)),
         "play_ms": int(v.get("PLAY_AFTER_MS", 500)),
         "pause_ms": int(v.get("PAUSE_AFTER_MS", 1500)),
-        "min_score": float(v.get("MIN_SCORE", 0.6)),
+        "min_score": float(v.get("MIN_SCORE", 0.5)),
     }
 
 
@@ -146,6 +149,33 @@ class Probe:
         self.client.loop_stop()
 
 
+class LogTail:
+    """recorder가 logs/에 새로 붙이는 줄만 읽는다. 만든 순간 이후의 줄만 본다 (파일이 돌려지면 처음부터)."""
+
+    def __init__(self, name: str = "zt.log"):
+        self.path = LOGS / name
+        self.offset = self.path.stat().st_size if self.path.exists() else 0
+
+    def lines(self) -> list[str]:
+        if not self.path.exists():
+            return []
+        if self.path.stat().st_size < self.offset:
+            self.offset = 0
+        with open(self.path, "rb") as f:
+            f.seek(self.offset)
+            return f.read().decode("utf-8", "replace").splitlines()
+
+    def wait(self, check, timeout: float = 5.0):
+        end = time.monotonic() + timeout
+        while True:
+            for line in self.lines():
+                if check(line):
+                    return line
+            if time.monotonic() > end:
+                return None
+            time.sleep(0.1)
+
+
 class FaceFeeder:
     """face-detector 흉내: docs/contracts의 face 형식으로 초당 10개를 보낸다. present·score를 바꿔 가며 쓴다."""
 
@@ -219,6 +249,6 @@ def open_player(browser, cfg, device):
 def clear_retained(cfg, device):
     probe = Probe(cfg["host"], cfg["mqtt_port"], "clean")
     if probe.start():
-        for kind in TOPICS:
+        for kind in DEVICE_TOPICS:
             probe.publish(topic(device, kind), b"", retain=True)
         probe.stop()

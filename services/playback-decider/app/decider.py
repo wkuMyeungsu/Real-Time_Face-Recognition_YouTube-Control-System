@@ -1,6 +1,11 @@
 """face 메시지를 재생·정지 명령으로 바꾼다. ESP32 한 대당 Decider 하나."""
 
+import logging
+
 from . import config
+from .mqtt_log import kv
+
+log = logging.getLogger("zt.playback-decider.decider")
 
 
 class Decider:
@@ -9,10 +14,12 @@ class Decider:
         play_after_ms: int = config.PLAY_AFTER_MS,
         pause_after_ms: int = config.PAUSE_AFTER_MS,
         min_score: float = config.MIN_SCORE,
+        device: str = "-",
     ):
         self.play_after_ms = play_after_ms
         self.pause_after_ms = pause_after_ms
         self.min_score = min_score
+        self.device = device
         self.reset()
 
     def reset(self, running: bool = False, now_ms: int | None = None) -> None:
@@ -27,8 +34,10 @@ class Decider:
         self.running = running
         # 마지막 face 메시지 시각. 시작 직후에는 시작 시각부터 센다.
         self.last_msg_ms: int | None = now_ms if running else None
+        # 판정 로그에 남길 근거 face의 seq. 끊겨서 내린 판정은 마지막으로 받은 seq
+        self.last_seq: int | None = None
 
-    def update(self, face: bool, score: float, now_ms: int) -> str | None:
+    def update(self, face: bool, score: float, now_ms: int, seq: int | None = None) -> str | None:
         """face 메시지 하나를 넣으면 "play"·"pause"를 돌려준다. 보낼 명령이 없으면 None.
 
         - score < min_score이면 face가 true여도 얼굴 없음으로 본다.
@@ -36,17 +45,22 @@ class Decider:
         - 같은 명령은 한 번만 돌려준다 (바뀔 때만).
         """
         self.last_msg_ms = now_ms
+        self.last_seq = seq
         if face and score >= self.min_score:
             self.absent_since = None
             if self.present_since is None:
                 self.present_since = now_ms
-            action = "play" if now_ms - self.present_since >= self.play_after_ms else None
+            present_ms = now_ms - self.present_since
+            if present_ms >= self.play_after_ms:
+                return self._emit("play", "face_present", "present_ms", present_ms)
         else:
             self.present_since = None
             if self.absent_since is None:
                 self.absent_since = now_ms
-            action = "pause" if now_ms - self.absent_since >= self.pause_after_ms else None
-        return self._emit(action)
+            absent_ms = now_ms - self.absent_since
+            if absent_ms >= self.pause_after_ms:
+                return self._emit("pause", "face_absent", "absent_ms", absent_ms)
+        return None
 
     def tick(self, now_ms: int) -> str | None:
         """메시지가 없어도 주기적으로 부른다. 돌려주는 값은 update()와 같다.
@@ -57,16 +71,21 @@ class Decider:
         """
         if not self.running or self.last_msg_ms is None:
             return None
-        if self.absent_since is None and now_ms - self.last_msg_ms >= self.pause_after_ms:
+        silent_ms = now_ms - self.last_msg_ms
+        if self.absent_since is None and silent_ms >= self.pause_after_ms:
             # 마지막 메시지 이후로 얼굴이 없었던 것으로 본다
             self.present_since = None
             self.absent_since = self.last_msg_ms
         if self.absent_since is None or now_ms - self.absent_since < self.pause_after_ms:
             return None
-        return self._emit("pause")
+        if silent_ms >= self.pause_after_ms:
+            return self._emit("pause", "face_timeout", "silent_ms", silent_ms)
+        return self._emit("pause", "face_absent", "absent_ms", now_ms - self.absent_since)
 
-    def _emit(self, action: str | None) -> str | None:
-        if action is None or action == self.last_action:
+    def _emit(self, action: str, reason: str, key: str, ms: int) -> str | None:
+        if action == self.last_action:
             return None
         self.last_action = action
+        kv(log, logging.INFO, f"{action} 판정", device=self.device, action=action, seq=self.last_seq, reason=reason,
+           **{key: ms})
         return action

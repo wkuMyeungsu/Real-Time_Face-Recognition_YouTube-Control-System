@@ -1,0 +1,4 @@
+# 내 PC에서 생긴 캐시가 이미지에 들어가지 않게 (pytest 캐시에 PC 경로가 박혀 컨테이너 테스트가 깨진다)
+**/__pycache__
+**/*.pyc
+.pytest_cache

@@ -1,4 +1,4 @@
-"""player (P1~P8). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
+"""player (P1~P11). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
 
 기준: README의 player 설명("유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, /mqtt를 broker로 넘김"),
 docs/contracts/README.md의 control·status·playback 절, index.html의 요소 id.
@@ -113,3 +113,96 @@ def test_playback_controls_youtube(page, cfg):
     probe.publish(topic(device, "playback"), {"action": "pause"})
     pg.wait_for_function("(window.__yt || []).some((c) => c[0] === 'pauseVideo')", timeout=3000)
     probe.stop()
+
+
+@pytest.mark.feature("P9")
+def test_button_logged_to_log_topic(page, cfg):
+    """버튼 → control 보냄을 zt/<기기>/log/player에도 남긴다. 로거는 zt.player.* (docs/logging-design.txt 7-4)."""
+    pg, device = page
+    connected(pg)
+    t = f"zt/{device}/log/player"
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p9")
+    assert probe.start()
+    probe.subscribe(t)
+    pg.click("#start")
+    got = probe.expect(t, lambda m: str(m.get("logger", "")).startswith("zt.player"), timeout=3)
+    probe.stop()
+    assert got, "시작 버튼을 눌렀는데 log 토픽에 player 로그가 없음"
+    validate("log", got)
+
+
+def _idle_sends_start(pg, cfg, device, expect):
+    """status idle을 보내고, 그 뒤 control start가 오는지(expect) 본다."""
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p9")
+    assert probe.start()
+    probe.subscribe(topic(device, "control"))
+    probe.drain()
+    probe.publish(topic(device, "status"), {"state": "idle", "fw": "0.1.0"}, retain=True)
+    pg.wait_for_function("document.getElementById('esp32').textContent.includes('idle')", timeout=3000)
+    got = probe.next(topic(device, "control"), lambda m: m.get("cmd") == "start", timeout=2 if expect else 1.5)
+    probe.stop()
+    return got
+
+
+@pytest.mark.feature("P10")
+def test_restart_after_reboot(page, cfg):
+    """시작을 누른 뒤 ESP32가 재부팅돼 idle이 오면 start를 다시 보낸다."""
+    pg, device = page
+    connected(pg)
+    pg.click("#start")
+    got = _idle_sends_start(pg, cfg, device, expect=True)
+    assert got, "시작 상태에서 idle이 왔는데 control start를 다시 보내지 않음"
+    validate("control", got[1])
+
+
+@pytest.mark.feature("P10")
+def test_no_restart_before_start(page, cfg):
+    """페이지를 열기만 한 상태(시작 전)의 idle에는 start를 보내지 않는다."""
+    pg, device = page
+    connected(pg)
+    assert not _idle_sends_start(pg, cfg, device, expect=False), "시작을 누르지 않았는데 start를 보냄"
+
+
+@pytest.mark.feature("P10")
+def test_no_restart_after_stop(page, cfg):
+    """시작 → 중지 뒤의 idle(stop 응답)에는 start를 보내지 않는다."""
+    pg, device = page
+    connected(pg)
+    pg.click("#start")
+    pg.click("#stop")
+    assert not _idle_sends_start(pg, cfg, device, expect=False), "중지 뒤 idle에 start를 다시 보냄"
+
+
+@pytest.mark.feature("P11")
+def test_resume_running_after_reload(player, browser, cfg):
+    """감지 중(retain status running)에 페이지를 열면 시작 상태로 이어받고, 그 뒤 재부팅 idle에 start를 다시 보낸다."""
+    device = unique_device("p11")
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p11")
+    assert probe.start()
+    probe.publish(topic(device, "status"), {"state": "running", "fw": "0.1.0"}, retain=True)
+    context, pg = open_player(browser, player, device)
+    try:
+        connected(pg)
+        pg.wait_for_function("document.getElementById('mode').textContent.includes('감지 중')", timeout=3000)
+        probe.subscribe(topic(device, "control"))
+        probe.drain()
+        probe.publish(topic(device, "status"), {"state": "idle", "fw": "0.1.0"}, retain=True)
+        got = probe.next(topic(device, "control"), lambda m: m.get("cmd") == "start", timeout=3)
+        assert got, "감지 중에 연 페이지가 재부팅 idle에 start를 다시 보내지 않음"
+    finally:
+        probe.stop()
+        context.close()
+        clear_retained(player, device)
+
+
+@pytest.mark.feature("P11")
+def test_no_resume_from_idle(page, cfg):
+    """retain status가 idle이면(페이지만 연 상태) 시작 상태가 아니다."""
+    pg, device = page
+    connected(pg)
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p11b")
+    assert probe.start()
+    probe.publish(topic(device, "status"), {"state": "idle", "fw": "0.1.0"}, retain=True)
+    pg.wait_for_function("document.getElementById('esp32').textContent.includes('idle')", timeout=3000)
+    probe.stop()
+    assert pg.text_content("#mode") == "중지됨"

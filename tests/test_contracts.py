@@ -1,4 +1,4 @@
-"""계약 문서(docs/contracts)와 설정 파일끼리 맞는지 (C1~C7). 서비스 없이 돈다."""
+"""계약 문서(docs/contracts)와 설정 파일끼리 맞는지 (C1~C8). 서비스 없이 돈다."""
 import re
 import tomllib
 
@@ -35,6 +35,12 @@ def test_document_examples_match_schemas():
     ("status", {"state": "sleeping", "fw": "0.1.0"}),
     ("playback", {"action": "stop"}),
     ("playback", {"action": "play", "extra": 1}),                                       # 문서에 없는 필드
+    ("log", {"level": "DEBUG", "logger": "zt.player.mqtt", "where": "app.js:x", "msg": "m"}),  # DEBUG는 보내지 않음
+    ("log", {"level": "INFO", "logger": "player", "where": "app.js:x", "msg": "m"}),           # zt.<파트>.<모듈>이 아님
+    ("log", {"level": "INFO", "logger": "zt.player.mqtt", "msg": "m"}),                        # where 없음
+    ("log", {"level": "INFO", "logger": "zt.player.mqtt", "where": "app.js:x", "msg": "m", "fields": {"a": [1]}}),  # 값이 목록
+    ("ping", {"id": "7"}),
+    ("pong", {}),
 ])
 def test_wrong_messages_are_rejected(kind, payload):
     with pytest.raises(jsonschema.ValidationError):
@@ -94,3 +100,13 @@ def test_feature_registry_matches_tests():
     assert set(features) <= used, f"테스트가 없는 기능: {set(features) - used}"
     for fid, f in features.items():
         assert f.get("status") in ("todo", "done") and f.get("part") and f.get("title"), f"{fid} 항목이 덜 채워짐"
+
+
+@pytest.mark.feature("C8")
+def test_python_log_config_copies_match():
+    """Python 서비스의 app/log_config.py는 원본 common/log_config.py를 그대로 복사한 것이어야 한다 (docs/logging-design.txt 3-6)."""
+    original = (ROOT / "common" / "log_config.py").read_text(encoding="utf-8")
+    copies = sorted((ROOT / "services").glob("*/app/log_config.py"))
+    assert copies, "공통 로그 설정을 쓰는 서비스가 없음"
+    different = [str(p.relative_to(ROOT)) for p in copies if p.read_text(encoding="utf-8") != original]
+    assert not different, f"원본(common/log_config.py)과 다름: {different}. 원본을 고치고 그대로 복사한다"

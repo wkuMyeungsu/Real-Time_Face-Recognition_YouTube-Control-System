@@ -1,5 +1,5 @@
 # CD (Continuous Delivery): CI 초록불을 받은 결과물을 누구나 같은 것으로 받게 내보낸다. 실행은 사람이 한다 (docs/ci-cd.md).
-#   main 병합 → playback-decider·player 이미지 빌드 (tag = 커밋 SHA, main) → ghcr.io push → 데모 PC에서 pull · up -d
+#   main 병합 → playback-decider·player·recorder 이미지 빌드 (tag = 커밋 SHA, main) → ghcr.io push → 데모 PC에서 pull · up -d
 #   v* 태그   → face-detector 펌웨어 컴파일 (README 환경 표 그대로) → GitHub Release에 .bin 첨부 → 보드 업로드는 각자 PC
 # main에는 브랜치 보호 규칙 때문에 CI를 통과한 커밋만 들어온다. 그래서 main push 자체가 CD의 신호다.
 # broker는 공식 이미지(eclipse-mosquitto)와 저장소의 mosquitto.conf로 뜨므로 따로 올리지 않는다.
@@ -17,7 +17,7 @@ permissions:
 jobs:
   images:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # CI와 같은 러너 (ubuntu-latest는 Ubuntu 26으로 옮겨 가는 중)
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -31,8 +31,8 @@ jobs:
           export REGISTRY="ghcr.io/${GITHUB_REPOSITORY,,}"
           for TAG in "$GITHUB_SHA" main; do
             export TAG
-            docker compose build playback-decider player
-            docker compose push playback-decider player
+            docker compose build playback-decider player recorder
+            docker compose push playback-decider player recorder
           done
           {
             echo "### 이미지 (${GITHUB_SHA::7})"
@@ -42,7 +42,7 @@ jobs:
 
   firmware:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # README "개발 환경" 표와 같은 값 (tests/test_contracts.py가 확인)
