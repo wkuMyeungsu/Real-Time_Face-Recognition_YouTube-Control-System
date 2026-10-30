@@ -1,7 +1,10 @@
-"""zt/+/face를 받아 Decider에 넣고, 명령이 나오면 zt/<기기>/playback으로 보낸다."""
+"""zt/+/face를 받아 Decider에 넣고, 명령이 나오면 zt/<기기>/playback으로 보낸다.
+face가 끊겨도 pause가 나가도록 tick_loop가 0.1초마다 Decider.tick()을 부른다."""
 
+import asyncio
 import json
 import logging
+import threading
 import time
 from contextlib import asynccontextmanager
 
@@ -15,13 +18,45 @@ log = logging.getLogger(config.SERVICE_NAME)
 
 deciders: dict[str, Decider] = {}
 stats = {"face_msgs": 0, "bad_msgs": 0, "playback_sent": 0}
+# on_message(MQTT 스레드)와 tick_loop(이벤트 루프)가 deciders를 함께 건드린다
+lock = threading.Lock()
+TICK_SEC = 0.1
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=config.SERVICE_NAME)
+
+
+def now_ms() -> int:
+    return int(time.monotonic() * 1000)
+
+
+def send(device: str, action: str | None) -> None:
+    if action:
+        client.publish(f"zt/{device}/playback", json.dumps({"action": action}), qos=1)
+        stats["playback_sent"] += 1
 
 
 def on_connect(client, userdata, flags, reason_code, properties):
     log.info("broker 연결: %s", reason_code)
     client.subscribe([("zt/+/face", 0), ("zt/+/control", 1)])
+
+
+FACE_FIELDS = {"seq", "face", "score", "count", "infer_ms"}
+
+
+def _count(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def valid_face(data: dict) -> bool:
+    """docs/contracts/schemas/face.schema.json과 같은 기준. 필드가 빠지거나 더 있거나 타입이 다르면 False."""
+    if set(data) != FACE_FIELDS:
+        return False
+    score = data["score"]
+    return (
+        isinstance(data["face"], bool)
+        and isinstance(score, (int, float)) and not isinstance(score, bool) and 0 <= score <= 1
+        and _count(data["seq"]) and _count(data["count"]) and _count(data["infer_ms"])
+    )
 
 
 def on_message(client, userdata, msg):
@@ -34,22 +69,34 @@ def on_message(client, userdata, msg):
         stats["bad_msgs"] += 1
         return
 
-    decider = deciders.setdefault(device, Decider())
     if kind == "control":
-        decider.reset()
+        cmd = data.get("cmd")
+        if cmd not in ("start", "stop"):
+            stats["bad_msgs"] += 1
+            return
+        with lock:
+            deciders.setdefault(device, Decider()).reset(running=cmd == "start", now_ms=now_ms())
         return
 
-    try:
-        face, score = bool(data["face"]), float(data.get("score", 0))
-    except (KeyError, TypeError, ValueError):
+    if not valid_face(data):
         stats["bad_msgs"] += 1
         return
+    face, score = data["face"], float(data["score"])
     stats["face_msgs"] += 1
 
-    action = decider.update(face, score, int(time.monotonic() * 1000))
-    if action:
-        client.publish(f"zt/{device}/playback", json.dumps({"action": action}), qos=1)
-        stats["playback_sent"] += 1
+    with lock:
+        action = deciders.setdefault(device, Decider()).update(face, score, now_ms())
+    send(device, action)
+
+
+async def tick_loop():
+    """face 메시지가 끊겨도 pause가 나가도록 주기적으로 Decider.tick()을 부른다."""
+    while True:
+        with lock:
+            actions = [(device, d.tick(now_ms())) for device, d in deciders.items()]
+        for device, action in actions:
+            send(device, action)
+        await asyncio.sleep(TICK_SEC)
 
 
 @asynccontextmanager
@@ -59,7 +106,9 @@ async def lifespan(app: FastAPI):
     # broker가 아직 없어도 막히지 않고 뒤에서 다시 붙는다
     client.connect_async(config.BROKER_HOST, config.BROKER_PORT)
     client.loop_start()
+    ticker = asyncio.create_task(tick_loop())
     yield
+    ticker.cancel()
     client.loop_stop()
     client.disconnect()
 

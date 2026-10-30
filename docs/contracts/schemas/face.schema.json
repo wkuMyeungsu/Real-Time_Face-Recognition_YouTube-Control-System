@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "face: face-detector → playback-decider",
+  "type": "object",
+  "required": [
+    "seq",
+    "face",
+    "score",
+    "count",
+    "infer_ms"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "부팅 후 0부터 1씩 올림"
+    },
+    "face": {
+      "type": "boolean",
+      "description": "threshold를 넘은 얼굴이 하나라도 있으면 true"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "가장 높은 얼굴 점수. 없으면 0"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "threshold를 넘은 얼굴 수"
+    },
+    "infer_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "모델 실행에 걸린 시간"
+    }
+  }
+}

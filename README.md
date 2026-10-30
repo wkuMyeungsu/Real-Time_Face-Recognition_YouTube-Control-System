@@ -27,7 +27,8 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 | `player` | 재생 화면. 유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, `/mqtt`를 broker로 넘김 | `services/player/` | 이진아 | 127.0.0.1:8080 | `http://player` |
 
 - 메시지 형식: `docs/contracts/README.md`
-- CI 구축 안내: `docs/ci-setup-guide.txt`
+- broker 사용법·메시지 보기·접속 문제 해결: `services/broker/README.md`
+- CI 구축 안내: `docs/ci-setup-guide.txt`, CI/CD와 기능 테스트: `docs/ci-cd.md`
 
 ## 실행 (서버)
 
@@ -51,6 +52,14 @@ docker compose down                   # 종료
 New-NetFirewallRule -DisplayName "zero-touch mqtt 1883" -Direction Inbound -Protocol TCP -LocalPort 1883 -Action Allow
 ```
 
+### 데모 PC (CD가 올린 이미지로)
+
+main에서 CI를 통과한 이미지를 빌드 없이 받아 띄운다 (`docs/ci-cd.md`).
+
+```bash
+TAG=<커밋 SHA> docker compose pull && TAG=<커밋 SHA> docker compose up -d
+```
+
 ### 보드 없이 확인
 
 ```bash
@@ -61,17 +70,29 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 
 ## 실행 (ESP32)
 
+### 하드웨어
+
+| 부품 | 모델 |
+|---|---|
+| 보드 | Seeed XIAO ESP32S3 (Wi-Fi 2.4GHz 내장) |
+| 카메라 | OV3660 (XIAO 카메라 커넥터에 연결, 핀 배치는 `CAMERA_MODEL_XIAO_ESP32S3`) |
+| 안테나 | Seeed Studio 2.4G 외부 안테나 (A-02). 보드의 U.FL 단자에 꽂는다 |
+
+### 개발 환경
+
 | 항목 | 값 |
 |---|---|
-| 보드 | Seeed XIAO ESP32S3 (FQBN `esp32:esp32:XIAO_ESP32S3`) |
+| Arduino IDE | 2.3.10 |
+| Tools → Board | XIAO_ESP32S3 (FQBN `esp32:esp32:XIAO_ESP32S3`) |
 | esp32 코어 | 3.3.12 (보드 매니저 URL `https://espressif.github.io/arduino-esp32/package_esp32_index.json`) |
-| 라이브러리 | PubSubClient 2.8, ArduinoJson 7.2.1 |
-| Tools → PSRAM | OPI PSRAM (카메라 사용 시) |
+| 라이브러리 | PubSubClient 2.8, ArduinoJson 7.2.1 (`device/face-detector/sketch.yaml`) |
+| Tools → PSRAM | OPI PSRAM (카메라에 필요) |
 | Tools → Partition Scheme | face-model 크기를 보고 정해 여기에 적는다 |
 
-1. `device/face-detector/secrets.example.h`를 같은 폴더에 `secrets.h`로 복사하고 Wi-Fi, PC IP, `DEVICE_ID`를 채운다.
-2. Arduino IDE에서 `device/face-detector/face-detector.ino`를 열어 업로드한다.
-3. 시리얼 모니터(115200)에 `[boot] FW_VERSION=…`과 `[mqtt] 연결됨`이 나오고, player의 ESP32 상태가 `idle`로 바뀌면 연결된 것이다.
+1. `device/face-detector/.env.example`을 같은 폴더에 `.env`로 복사해 Wi-Fi(2.4GHz), PC IP, `DEVICE_ID`를 채운다.
+2. 보드를 USB로 꽂고 그 폴더에서 `python setup_arduino.py`를 실행한다. esp32 코어·라이브러리 설치(버전은 `sketch.yaml`), `secrets.h` 생성, 보드 포트 확인을 한 번에 한다. 빠진 것이 있으면 무엇을 할지 알려 준다. 자세한 내용은 `device/face-detector/README.md`.
+3. Arduino IDE에서 `device/face-detector/face-detector.ino`를 열고 2에서 알려 준 포트를 골라 업로드한다.
+4. 시리얼 모니터(115200)에 `[boot] FW_VERSION=…`과 `[mqtt] 연결됨`이 나오고, player의 ESP32 상태가 `idle`로 바뀌면 연결된 것이다.
 
 ## 브랜치
 
@@ -82,4 +103,5 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 - 커밋 메시지: `<타입>(<파트>): <요약>`. 예: `feat(playback-decider): 재생·정지 판정 구현`
 - PR 병합은 Create a merge commit만 사용한다. CI가 통과해야 병합한다.
 - `.env`, `secrets.h`, 모델 가중치(`*.onnx` `*.tflite`)는 커밋하지 않는다.
-- 테스트는 자기 서비스 폴더의 `tests/`에 둔다. CI가 있는 것만 돌린다.
+- 테스트는 자기 폴더의 `tests/`에 둔다 (`services/<서비스>/tests/`, `device/<파트>/tests/`). CI가 있는 것만 돌린다.
+- 계약 문서 기준 기능 테스트는 저장소 루트 `tests/`에 미리 있다. 기능을 완성하면 `tests/features.toml`에서 그 기능을 `done`으로 바꿔 같은 PR에 넣는다. `done`이 된 기능은 다시 깨진 채로 병합될 수 없다 (`docs/ci-cd.md`).

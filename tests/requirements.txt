@@ -1,0 +1,6 @@
+# 저장소 루트 tests/ (계약 기준 기능 테스트, smoke test)가 쓰는 패키지. PC에서: pip install -r tests/requirements.txt
+paho-mqtt==2.1.0
+jsonschema==4.26.0
+pytest==9.1.1
+# 브라우저 테스트(player). 설치 후 한 번: python -m playwright install chromium
+playwright==1.56.0

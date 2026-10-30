@@ -1,5 +1,7 @@
 # 주고받는 메시지 (MQTT 토픽)
 
+기계 검사용 스키마는 `schemas/<토픽>.schema.json`이다. 이 문서의 JSON 예시가 스키마에 맞는지 CI가 검사한다 (`tests/test_contracts.py`). 형식을 바꾸면 이 문서와 스키마를 같은 PR에서 고친다.
+
 상태: **제안**(문서만 있음) → **구현**(양쪽이 이 형식대로 구현해 dev에 병합) → **합의**(양쪽 담당자가 이 문서를 확인). 형식을 바꿀 때는 이 문서부터 고치고 양쪽 담당자에게 PR 리뷰를 받는다.
 
 | 토픽 | 보내는 쪽 → 받는 쪽 | QoS | retain | 상태 |
@@ -23,7 +25,7 @@
 ```
 
 - face-detector는 `start`를 받으면 감지를 시작하고 `face`를 보낸다. `stop`이면 멈춘다. 받을 때마다 `status`를 다시 보낸다.
-- playback-decider는 둘 다 받으면 그 기기의 판정 상태를 처음으로 돌린다.
+- playback-decider는 둘 다 받으면 그 기기의 판정 상태를 처음으로 돌린다. `stop` 뒤에는 다음 `start`까지 `playback`을 보내지 않는다.
 - ESP32가 재부팅되면 `idle`로 시작한다. 다시 `start`를 보내야 한다.
 
 ## face — face-detector → playback-decider
@@ -63,4 +65,5 @@ face-model을 한 번 실행할 때마다 하나. `running`일 때만, 최대 �
 ```
 
 - 명령이 바뀔 때만 보낸다. 같은 명령을 연달아 보내지 않는다.
+- `start` 뒤 `face`가 `PAUSE_AFTER_MS` 동안 오지 않으면(face-detector가 멈추거나 끊김) 그동안 얼굴이 없었던 것으로 보고 `pause`를 보낸다.
 - 판정 기준(`PLAY_AFTER_MS` `PAUSE_AFTER_MS` `MIN_SCORE`)은 `.env`에 있다.
