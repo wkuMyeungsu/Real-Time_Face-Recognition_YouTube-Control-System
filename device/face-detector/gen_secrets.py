@@ -45,11 +45,24 @@ def build_header(env: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def check_env(env: dict[str, str], example: dict[str, str]) -> list[str]:
+    """비었거나 .env.example 견본 값 그대로인 키를 돌려준다. 기본값으로 써도 되는 키는 뺀다."""
+    keep_default = {"BROKER_PORT", "DEVICE_ID"}
+    return [k for k in KEYS if not env.get(k) or (k not in keep_default and env[k] == example.get(k))]
+
+
 def main() -> None:
     env_path = HERE / ".env"
     if not env_path.exists():
-        sys.exit(f"{env_path}가 없다. .env.example을 .env로 복사해 채운다.")
+        sys.exit(
+            f".env 파일이 없습니다. .env.example을 복사해 .env 파일을 만들고 값을 채우세요.\n"
+            f"  cd {HERE}\n"
+            f"  cp .env.example .env"
+        )
     env = read_env(env_path)
+    unfilled = check_env(env, read_env(HERE / ".env.example"))
+    if unfilled:
+        sys.exit(f"{env_path}에 값이 비어 있거나 견본 값 그대로입니다. 채우세요: {', '.join(unfilled)}")
     try:
         header = build_header(env)
     except ValueError as e:
