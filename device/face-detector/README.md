@@ -75,7 +75,9 @@ python -m pytest -q tests
 - 메시지는 한국어 한 문장 + `key=value`, 단위는 키 끝(`_ms` `_kb` `_dbm`). 비밀번호는 찍지 않는다.
 - 기본은 INFO 이상만 찍는다. 자세히 보려면 `#include "log.h"` 앞에 `#define ZT_LOG_LEVEL ZT_LOG_DEBUG`.
 - 레벨 기준: 정상 흐름 INFO, 재연결·신호 약함(`rssi_dbm` < -75)·비정상 재부팅 WARNING, 잘못된 메시지 ERROR.
-- MQTT `log` 토픽으로 보내기와 `ping`/`pong`은 계약 합의 후에 넣는다.
+- INFO 이상은 `zt/<DEVICE_ID>/log/face-detector`로도 보낸다 (메시지 앞부분이 `msg`, `key=value`가 `fields`). MQTT 연결 전 로그(부팅·Wi-Fi)는 모았다가 연결되면 보낸다.
+- `zt/<DEVICE_ID>/ping`을 받으면 본문 그대로 `pong`으로 돌려준다 (recorder가 왕복 시간을 잰다).
+- running일 때 5초마다 요약: `fps` `faces` `dropped` `capture_ms_avg/max` `infer_ms_avg/max` `heap_kb`.
 
 ## 카메라 미리보기
 
@@ -92,5 +94,6 @@ python -m pytest -q tests
 
 ## 지금 상태
 
-- 됨: Wi-Fi·MQTT 연결, `status` 발행(끊기면 `offline`), `control`(start/stop) 수신, 공통 형식 시리얼 로그
-- 안 됨: 카메라 촬영, face-model 실행 (`loop()`의 TODO)
+- 됨: Wi-Fi·MQTT 연결, `status` 발행(끊기면 `offline`), `control`(start/stop) 수신, 공통 형식 로그(시리얼 + log 토픽), ping/pong,
+  running일 때 카메라 → face-model → `face` (초당 최대 10장, 실제로는 추론 약 146ms라 7장 안팎), 카메라 미리보기
+- 모델: `ei-1152864-v96` (`device/face-model/*.zip`, `python setup_arduino.py`가 설치)
