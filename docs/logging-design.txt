@@ -1,0 +1,437 @@
+==============================================================
+ zero-touch-media 로그 설계
+==============================================================
+
+- 작성: 박명수 (face-detector)
+- 상태: 팀 합의. 8장 임우진 몫(계약·공통 설정·recorder)은 구현됨, 각 파트 몫은 진행 중 (10장)
+- 확인 기준: dev f3934b0 (PR #12까지 병합)
+- 참고: Day11(10/21) 1~2교시 "Logging 기초·활용"
+  (02_lecture/day11_2026-10-21/lab/01-02_log/log_config.py)
+
+- 고친 내역
+  - 2026-10-30 처음 작성
+  - 2026-10-30 최신 dev로 다시 확인
+    - PR #11(broker 로그 설정) 병합 내용 반영
+    - playback-decider 판정 코드에 맞춰 reason 이름 정리
+    - 열린 PR #12(계약 JSON Schema·기능 테스트)에 맞춰 계약 추가 방법 정리
+  - 2026-10-30 팀 합의, 8장 임우진 몫 구현 (임우진). 구현하며 정한 것은 10장
+
+
+--------------------------------------------------------------
+1. 목표
+--------------------------------------------------------------
+
+- 모든 파트의 로그를 한 곳(한 파일, 한 타임라인)에서 본다.
+- "왜 멈췄지?", "어디서 느리지?"를 로그만 보고 답할 수 있게 한다.
+- 사람이 화면 앞에 앉은 순간부터 영상이 재생될 때까지 구간별 지연(ms)을 잰다.
+
+
+--------------------------------------------------------------
+2. 지금 상태 (dev cf59b10 기준)
+--------------------------------------------------------------
+
+- face-detector (박명수)
+  - Serial.print 8곳 (부팅, Wi-Fi, MQTT, control).
+  - USB를 꽂은 PC의 시리얼 모니터에서만 보인다. 서버에서는 안 보인다.
+  - 실제 보드로 broker 연결, control start/stop → status idle/running 확인 완료.
+
+- broker (임우진) — PR #11 병합으로 많이 갖춰짐
+  - stdout, docker compose logs broker 로 본다.
+  - error·warning·notice·information 로그, 접속·끊김 기록(connection_messages) 켜짐.
+  - 시각 형식 %Y-%m-%d %H:%M:%S (밀리초 없음, mosquitto 자체 형식).
+  - set_tcp_nodelay true: face 메시지를 묶어 보내느라 생기는 지연(Nagle)을 이미 껐다.
+  - $SYS 통계 토픽은 따로 설정하지 않았다 (mosquitto 기본값으로 10초마다 나온다).
+
+- playback-decider (김도은)
+  - logging.basicConfig(format="%(asctime)s %(name)s %(message)s")
+    - 수업 형식에서 levelname, filename:lineno 칸이 빠져 있다.
+    - 로거 이름이 playback-decider 하나라 계층이 없다.
+  - 남기는 로그는 "broker 연결" 한 줄뿐이다.
+    - 판정(play/pause)과 그 이유, 잘못된 메시지 내용은 남지 않는다 (/stats에 개수만 있다).
+  - /health 요청 로그(uvicorn)가 몇 초마다 찍혀 다른 로그를 묻는다.
+  - 판정 이유는 코드에 세 갈래로 이미 있다 (Decider.update / tick). 다만 action만 돌려주고 이유는 밖으로 안 나온다.
+    - play: 얼굴이 PLAY_AFTER_MS 이상 이어짐
+    - pause: 얼굴 없음이 PAUSE_AFTER_MS 이상 이어짐
+    - pause: face 메시지가 PAUSE_AFTER_MS 동안 안 옴 (보드 멈춤·끊김)
+
+- player (이진아)
+  - 화면 안 로그 목록(최근 50개). 시각은 toLocaleTimeString이라 밀리초가 없다.
+  - 새로고침하면 사라진다.
+  - 유튜브 플레이어는 아직 TODO라 유튜브 쪽 로그도 아직 없다.
+
+- face-model (김대희)
+  - README 표가 아직 빈칸(예시 값)이다. 모델 버전 이름도 아직 없다.
+
+- 열린 PR #12 (기능 테스트·CD) — 로그 기능은 아니지만 계약을 늘리는 방법이 바뀐다
+  - docs/contracts/schemas/에 토픽마다 JSON Schema를 둔다.
+  - 스키마에 additionalProperties: false라서 문서에 없는 필드는 거부된다.
+  - 기능 테스트(C2, C4)가 "계약 문서 토픽 표 = 스키마 파일 = 문서 예시"인지 검사한다.
+  - 기능 진행은 tests/features.toml로 관리한다 (todo / done).
+
+- 전체를 한 곳에 모으는 기능은 아직 아무도 만들고 있지 않다.
+
+
+--------------------------------------------------------------
+3. 통일 형식 (수업 형식 기준)
+--------------------------------------------------------------
+
+3-1. 한 줄 모양
+
+- 형식 (수업 log_config.py와 같다)
+  %(asctime)s %(levelname)-8s %(name)s %(filename)s:%(lineno)d %(message)s
+
+- 예
+  2026-10-30 14:05:07,502 INFO     zt.playback-decider.decider decider.py:41 play 판정 device=esp32-a seq=123 reason=face_present present_ms=612
+
+- 칸별 뜻
+  - asctime: 날짜와 시각, 밀리초까지. PC 시계(KST).
+  - levelname: 다섯 레벨 중 하나. 8칸으로 맞춘다.
+  - name: 로거 이름 (3-2).
+  - filename:lineno: 로그를 찍은 파일과 줄.
+  - message: 사람이 읽는 한 문장 + key=value (3-4).
+
+- 예외: mosquitto 자체 로그
+  - mosquitto는 형식을 바꿀 수 없다 (시각에 밀리초도 없다).
+  - docker compose logs broker 에서는 지금 모양 그대로 둔다.
+  - recorder가 모을 때는 위 형식으로 바꿔 적는다 (시각은 recorder가 받은 시각).
+
+
+3-2. 로거 이름: 점으로 계층을 만든다 (수업 2교시)
+
+- 규칙: zt.<파트>.<모듈>
+  - zt: 프로젝트 루트 로거.
+  - <파트>: README의 파트 이름 그대로.
+  - <모듈>: 파트 안에서 하는 일.
+
+- 이름 목록
+  - zt.face-detector.boot / .wifi / .mqtt / .camera / .infer
+  - zt.playback-decider.main / .decider
+  - zt.player.mqtt / .youtube
+  - zt.broker
+  - zt.recorder
+
+- 수업 원칙 그대로 지킨다
+  - 핸들러는 진입점 한 곳에만 붙인다. 모듈은 이름만 나눠 쓴다.
+  - 같은 로그가 두 번 찍히면 경로 위 핸들러 수와 propagate를 먼저 본다.
+
+
+3-3. 레벨: 다섯 단계 기준을 팀이 같이 쓴다
+
+- DEBUG
+  - 개발자용 상세. 프레임마다의 값, 받은 메시지 원문.
+  - 운영에서는 끈다. MQTT로 보내지 않는다.
+- INFO
+  - 정상 흐름. 부팅, 연결, start/stop, 판정, 5초 요약.
+- WARNING
+  - 이상하지만 계속 간다. 재연결, seq 건너뜀, 추론이 느림, Wi-Fi 신호 약함.
+- ERROR
+  - 실패했지만 프로그램은 살아 있다. 프레임 촬영 실패, 잘못된 메시지, 유튜브 API 에러.
+  - Python except 안에서는 logger.exception (Traceback까지 남긴다).
+- CRITICAL
+  - 더 진행할 수 없다. 카메라 초기화 실패, 모델 로드 실패.
+
+
+3-4. 메시지 본문
+
+- 앞은 사람이 읽는 짧은 한국어 문장, 뒤는 key=value를 공백으로 이어 쓴다.
+  - 예: 재연결 device=esp32-a rc=-2 count=3
+- 단위는 키 이름 끝에 붙인다.
+  - _ms (시간), _kb (메모리), _dbm (신호 세기), _pct (비율)
+- 기기 구분은 항상 device=esp32-a 처럼 쓴다.
+- 메시지 추적 번호는 seq= 로 쓴다.
+- Python은 f-string 대신 %s 형식으로 쓴다 (수업 1교시).
+  - logger.info("play 판정 device=%s seq=%s", device, seq)
+- 남기지 않는 것
+  - Wi-Fi 비밀번호, .env 값, 토큰.
+  - 꼭 필요하면 앞 두 글자만 남기고 가린다 (setup_arduino.py와 같은 방식).
+
+
+3-5. 개발용·운영용 두 벌 (수업 2교시 STEP 08)
+
+- 환경 변수 LOG_ENV로 고른다 (.env, 기본값 prod).
+  - dev: 콘솔에 DEBUG까지.
+  - prod: 콘솔에 INFO 이상. 파일 저장은 recorder가 맡는다.
+- 라이브러리 로그는 WARNING 이상만 받는다 (수업 STEP 07 "잠재우기").
+  - paho.mqtt
+  - uvicorn.access (/health 요청 로그. 지금 다른 로그를 묻고 있다)
+
+
+3-6. 파트별 적용 방법
+
+- Python (playback-decider, recorder)
+  - logging.config.dictConfig로 설정을 한 파일에 둔다 (수업 log_config.py 모양).
+  - 진입점(__main__.py)에서 한 번만 설정하고, 모듈은 getLogger("zt.<파트>.<모듈>")만 쓴다.
+  - playback-decider는 지금 __main__.py의 basicConfig 한 줄을 이 설정으로 바꾸면 된다.
+- ESP32 (face-detector)
+  - Arduino에는 logging이 없으므로 LOGD·LOGI·LOGW·LOGE·LOGC 매크로를 만들어 같은 모양으로 찍는다.
+  - __FILE__, __LINE__으로 filename:lineno 칸을 채운다.
+  - asctime 대신 부팅 후 경과 시간(up_ms)을 찍는다. 받은 시각은 recorder가 붙인다.
+  - 시리얼 예
+    [up 12345ms] INFO     zt.face-detector.wifi face-detector.ino:62 연결됨 ip=172.30.1.57 rssi_dbm=-48
+  - INFO 이상은 MQTT log 토픽으로도 보낸다 (4).
+- 브라우저 (player)
+  - log(level, name, msg, fields) 함수 하나를 만들어 console.*과 MQTT log 토픽으로 보낸다.
+  - 화면 로그 목록도 이 함수를 거치게 하고, 시각은 밀리초까지 찍는다.
+  - filename:lineno 칸은 app.js:<함수 이름>으로 대신한다.
+
+
+--------------------------------------------------------------
+4. MQTT로 보내는 로그 (log·ping·pong 토픽, 제안)
+--------------------------------------------------------------
+
+- 토픽
+  - zt/<기기>/log/<파트> (QoS 0, retain 아님)
+    - 기기와 상관없는 서버 로그는 <기기> 자리에 server를 쓴다.
+  - zt/<기기>/ping : recorder → face-detector (QoS 0)
+  - zt/<기기>/pong : face-detector → recorder (QoS 0)
+
+- log 본문(JSON)은 한 줄 형식의 칸과 같다
+  {
+    "level": "INFO",
+    "logger": "zt.face-detector.wifi",
+    "where": "face-detector.ino:62",
+    "msg": "연결됨",
+    "up_ms": 12345,
+    "fields": { "ip": "172.30.1.57", "rssi_dbm": -48 }
+  }
+  - asctime은 보내지 않는다. recorder가 받은 시각(PC 시계)을 붙인다.
+  - PC에서 도는 파트(decider, player)는 보낸 시각 ts_ms를 같이 넣어도 된다 (같은 PC 시계).
+
+- ping·pong 본문
+  - ping: { "id": 7 }
+  - pong: 받은 ping 본문을 그대로 돌려준다.
+
+- 보내는 양
+  - 프레임마다 보내지 않는다. 5초 요약만 INFO로 보낸다.
+  - DEBUG는 MQTT로 보내지 않는다 (시리얼·콘솔에서만).
+
+- 계약에 넣는 방법 (PR #12 병합 후 기준)
+  - docs/contracts/README.md 토픽 표에 log, ping, pong 세 줄과 본문 예시를 추가한다.
+  - docs/contracts/schemas/에 log.schema.json, ping.schema.json, pong.schema.json을 추가한다.
+    - 기능 테스트 C2·C4가 "표 = 스키마 = 예시"를 검사하므로 셋을 같이 넣어야 CI가 통과한다.
+  - tests/features.toml에 로그 기능을 todo로 추가해 진행 상황을 관리한다.
+
+
+--------------------------------------------------------------
+5. 어디서 모으나: recorder 서비스
+--------------------------------------------------------------
+
+- broker와 같은 PC에서 docker compose 서비스로 돈다.
+
+- 구독
+  - zt/# : control, status, face, playback, log, pong 전부
+  - $SYS/broker/# : broker 통계 (10초마다)
+
+- 저장
+  - 받은 메시지마다 PC 시계로 시각을 붙여 3-1 형식 한 줄로 바꾼다.
+  - logs/zt.log : 사람이 읽는 줄 (한 타임라인)
+  - logs/zt.jsonl : 분석용 원본
+  - face 원문(초당 최대 10개)은 zt.jsonl에만 넣고, zt.log에는 5초 요약(받은 수, seq 건너뜀)만 쓴다.
+  - 로테이션: RotatingFileHandler, 5MB × 5개 (수업 2교시 STEP 06).
+  - logs/는 커밋하지 않는다 (.gitignore).
+
+- 보기
+  - tail -f logs/zt.log
+  - 컨테이너가 죽는 문제처럼 recorder 밖의 일은 docker compose logs 로 본다.
+
+
+--------------------------------------------------------------
+6. 지연 재는 원칙 ("MQTT로 보내면 또 지연이 생긴다" 문제)
+--------------------------------------------------------------
+
+- 원칙 1. 시간은 그 일이 일어난 기기에서, 그 기기 시계로 잰다
+  - 결과 숫자만 보낸다. publish는 측정이 끝난 뒤에 한다.
+  - 예: t0 = millis() → 추론 → infer_ms = millis() - t0 → 그다음 publish
+  - 전송이 1ms 걸리든 100ms 걸리든 infer_ms 값은 그대로다.
+  - 계약의 face.infer_ms가 이미 이 방식이다.
+
+- 원칙 2. 서버 쪽은 시계가 하나다
+  - broker, playback-decider, recorder, player 브라우저는 모두 같은 PC에서 돈다.
+  - 서로의 시각을 그냥 빼면 된다.
+
+- 원칙 3. 시계가 다른 것은 ESP32 하나다. 전송 지연은 왕복으로 잰다
+  - recorder → zt/<기기>/ping {"id": 7}
+  - ESP32 → zt/<기기>/pong {"id": 7} (받은 그대로 바로 돌려준다)
+  - recorder가 왕복 시간 rtt_ms를 재고, rtt_ms / 2를 한쪽 방향 전송 지연으로 본다.
+  - 30초마다 보낸다. 두 시계를 맞출 필요가 없다.
+  - broker의 set_tcp_nodelay(PR #11)가 이미 켜져 있어 이 값이 묶음 전송 지연 없이 나온다.
+  - 더 정확해야 하면 나중에 ESP32 시계를 NTP로 맞추고 촬영 시각을 같이 보낸다.
+
+- 원칙 4. 로그가 본 작업을 늦추지 않게 한다
+  - QoS 0, 5초 요약만 보낸다.
+  - publish와 시리얼 출력은 측정 구간 밖에서 한다.
+
+- 원칙 5. seq로 한 줄로 잇는다
+  - playback-decider가 판정의 근거가 된 face의 seq를 playback 메시지에 싣는다.
+  - "123번 프레임 → play 판정 → 유튜브 재생"을 따라갈 수 있다.
+  - PR #12의 playback 스키마는 action 말고 다른 필드를 거부한다(additionalProperties: false).
+    - seq를 넣으려면 계약 문서와 playback.schema.json을 같이 고쳐야 한다.
+    - face-detector·playback-decider·player 합의가 필요하다.
+
+- 이렇게 나오는 구간별 지연
+  - 촬영: capture_ms (ESP32가 잼)
+  - 추론: infer_ms (ESP32가 잼)
+  - ESP32 → PC 전송: rtt_ms / 2 (recorder가 잼)
+  - 판정 대기: PLAY_AFTER_MS / PAUSE_AFTER_MS (일부러 두는 대기, .env 값. 기본 500 / 1500)
+  - 판정 → 재생 시작: player가 playback 받은 시각 → 유튜브 PLAYING 시각
+
+
+--------------------------------------------------------------
+7. 파트별로 남길 로그
+--------------------------------------------------------------
+
+7-1. face-detector (박명수)
+
+- INFO
+  - 부팅: fw, model(모델 버전), reset_reason, heap_kb, psram_kb
+  - Wi-Fi 연결: ssid, ip, rssi_dbm
+  - MQTT 연결
+  - control start/stop 받음
+  - 카메라 초기화: frame_size, format
+  - 5초 요약: fps, capture_ms_avg, capture_ms_max, infer_ms_avg, infer_ms_max, dropped, heap_kb
+- WARNING
+  - Wi-Fi·MQTT 재연결: rc, count
+  - 신호 약함: rssi_dbm가 -75보다 낮을 때
+  - 추론 느림: infer_ms가 200을 넘을 때
+  - 남은 메모리가 계속 줄 때 (메모리 누수 의심)
+- ERROR
+  - 프레임 촬영 실패
+- CRITICAL
+  - 카메라 초기화 실패, 모델 로드 실패
+- DEBUG (시리얼에서만)
+  - 프레임마다 score, count
+- 그 밖
+  - ping을 받으면 바로 pong으로 돌려준다.
+- 먼저 할 것
+  - 지금 있는 Serial.print 8곳을 LOG 매크로로 바꾸는 것부터 (카메라 작업과 같이).
+
+
+7-2. face-model (김대희)
+
+- 실시간 로그는 없다.
+- 모델 버전 이름 규칙을 정한다 (예: face-fomo-96g-v3).
+  - 펌웨어 부팅 로그의 model= 에 찍혀서, 어떤 모델로 돌린 결과인지 로그로 알 수 있다.
+- face-model README에 버전별로 남긴다 (지금은 표가 빈칸).
+  - Edge Impulse 테스트 정확도, threshold, 보드 확인 기록.
+
+
+7-3. playback-decider (김도은)
+
+- INFO
+  - 시작할 때 판정 기준값: PLAY_AFTER_MS, PAUSE_AFTER_MS, MIN_SCORE
+  - 판정: action, reason, device, seq
+    - reason 이름은 지금 코드의 세 갈래에 맞춘다
+      - face_present: 얼굴이 PLAY_AFTER_MS 이상 이어져 play (Decider.update) → present_ms
+      - face_absent: 얼굴 없음이 PAUSE_AFTER_MS 이상 이어져 pause (Decider.update) → absent_ms
+      - face_timeout: face 메시지가 PAUSE_AFTER_MS 동안 안 와서 pause (Decider.tick) → silent_ms
+    - 지금 Decider는 action만 돌려주므로, reason도 같이 돌려주게 고쳐야 한다.
+  - start/stop 받음 → 그 기기의 판정 상태 초기화
+- WARNING
+  - seq 건너뜀: expected, got, lost (QoS 0이라 메시지 유실을 여기서 알 수 있다)
+  - 잘못된 메시지: 토픽과 이유 (지금은 bad_msgs 개수만 있다)
+- ERROR
+  - broker 연결 끊김, 처리 중 예외 (logger.exception)
+- 설정
+  - __main__.py의 basicConfig를 3-1 형식의 dictConfig로 바꾼다.
+  - uvicorn.access(/health 요청 로그)는 WARNING으로 올린다.
+
+
+7-4. player (이진아)
+
+- INFO
+  - 영상 선택: video_id
+  - 버튼 → control 보냄: cmd
+  - playback 받음: action, seq
+  - playVideo / pauseVideo 호출
+  - 유튜브 상태 변화: state=PLAYING|PAUSED|BUFFERING|ENDED, since_playback_ms
+- WARNING
+  - MQTT(WebSocket) 끊김·재연결
+- ERROR
+  - 유튜브 API onError: code
+- 먼저 할 것
+  - 유튜브 플레이어(TODO)를 붙일 때 위 유튜브 로그를 같이 넣는다.
+  - 지금 화면 로그 목록의 시각을 밀리초까지 찍는다.
+
+
+7-5. broker (임우진)
+
+- 이미 된 것 (PR #11)
+  - 클라이언트 접속·끊김 (client id), 에러·경고
+  - 같은 DEVICE_ID 충돌 안내 (services/broker/README.md)
+- 더할 것
+  - LWT 발동 확인 (보드가 끊겼을 때 offline이 나갔는지) — recorder가 status 토픽으로 기록
+  - $SYS 통계 (recorder가 구독해서 1분마다 요약)
+    - 접속한 클라이언트 수
+    - 초당 받은·보낸 메시지 수
+    - 바이트 수, 실행 시간
+- recorder가 계산하는 것
+  - ping 왕복 rtt_ms
+  - 토픽별 초당 메시지 수 (face가 계약대로 초당 10개 이하인지)
+
+
+--------------------------------------------------------------
+8. 담당
+--------------------------------------------------------------
+
+- 임우진 (broker = 실행 환경·계약 문서 담당)
+  - recorder 서비스와 logs/ 위치
+  - log·ping·pong 토픽 계약 문서와 스키마 (PR #12의 방식대로)
+  - LOG_ENV와 Python 공통 로그 설정
+  - 지금 PR #12(기능 테스트·CD)를 진행 중이라 일이 몰려 있다.
+    - recorder는 박명수가 만들고 임우진이 리뷰하는 방식도 괜찮다.
+- 각 파트 담당자
+  - 7에 적은 자기 파트 로그를 3의 형식대로 남긴다.
+
+
+--------------------------------------------------------------
+9. 진행 순서 (제안)
+--------------------------------------------------------------
+
+1. 이 문서로 팀 합의: 한 줄 형식, 로거 이름, 레벨 기준, log·ping·pong 토픽, reason 이름.
+2. PR #12 병합을 기다린다 (계약 스키마·기능 테스트 방식이 여기서 정해진다).
+3. 계약 문서에 log·ping·pong 토픽과 스키마를 "제안" 상태로 추가 (임우진).
+4. 각 파트가 지금 있는 로그부터 형식 맞추기 (작게, 바로 할 수 있는 것부터)
+   - playback-decider: basicConfig → dictConfig, uvicorn.access 잠재우기, 판정 reason 로그
+   - face-detector: Serial.print → LOG 매크로
+   - player: 화면 로그 시각 밀리초, 유튜브 붙일 때 유튜브 로그
+5. recorder 최소 버전: zt/#를 받아 logs/zt.log 한 파일에 쌓기.
+6. 각 파트가 INFO 로그를 log 토픽으로 보내기.
+7. 마지막으로 ping/pong, seq 잇기(계약 변경), 5초 요약 → 구간별 지연 재기.
+
+
+--------------------------------------------------------------
+10. 구현 상태 (임우진 몫, 2026-10-30)
+--------------------------------------------------------------
+
+- 된 것
+  - log·ping·pong 계약: docs/contracts/README.md 토픽 표·본문 예시, schemas/log·ping·pong.schema.json
+    - 기능 테스트 C1~C4가 셋을 같이 검사한다. log 스키마는 DEBUG를 거부한다 (MQTT로 보내지 않기로 함)
+  - Python 공통 로그 설정: common/log_config.py (3-1 형식, 3-2 이름, 3-5 LOG_ENV, LOG_TZ)
+    - 서비스는 app/log_config.py로 그대로 복사해 쓴다 (도커 빌드가 서비스 폴더만 봐서). C8이 같은지 검사
+  - recorder 서비스: services/recorder/, logs/zt.log·zt.jsonl, 5MB × 5 로테이션 (README에 읽는 법)
+    - 기능 테스트 R1~R7 done
+  - CD가 recorder 이미지도 ghcr.io에 올린다
+
+- 구현하며 정한 것 (이 문서와 다른 점·더한 점)
+  - broker 로그를 recorder가 받는 방법 (3-1 "예외"): mosquitto.conf에 log_dest topic을 더했다.
+    mosquitto가 같은 로그를 $SYS/broker/log/<E|W|N|I>로도 보내고, recorder가 zt.broker로 적는다.
+    다른 컨테이너의 stdout을 읽지 않아도 된다.
+  - broker 헬스체크가 10초마다 접속해 접속 로그 세 줄이 생긴다. client id를 healthcheck로 고정하고
+    recorder가 이 줄과 "New connection from" 줄을 DEBUG로 낮춘다 (prod 타임라인에 안 나옴).
+  - ping은 30초마다에 더해, 기기를 처음 봤을 때(status idle·running) 바로 한 번 보낸다.
+    pong이 없으면 기기마다 한 번만 알린다 (face-detector가 pong을 만들기 전까지 반복해서 쓰지 않게).
+  - rtt_ms는 face-detector가 loop()에서 pong을 늦게 돌려주면 그만큼 커진다. 전송 지연의 상한으로 읽는다.
+  - 받은 메시지 중 control·status·playback도 zt.recorder.mqtt로 한 줄씩 남긴다. status offline(LWT)은 WARNING.
+  - face 요약의 per_s는 메시지가 실제로 온 구간으로 계산한다 (계약: 초당 10개 이하, 1.2배를 넘으면 WARNING).
+  - server는 기기 ID로 쓰지 않는다 (계약 문서 '공통'에 적음).
+
+- 각 파트가 할 일 (tests/features.toml에 todo로 넣음. 구현하면 done으로 바꾼다)
+  - D12 playback-decider: 판정 로그를 zt/<기기>/log/playback-decider로 (fields에 action·reason·seq)
+  - D13 playback-decider: __main__.py의 basicConfig → setup_logging(), uvicorn.run(..., log_config=None)
+  - P9  player: 버튼·playback·유튜브 로그를 zt/<기기>/log/player로 (로거 zt.player.*)
+  - F4  face-detector: LOG 매크로, INFO 이상은 zt/<기기>/log/face-detector로, ping을 받으면 그대로 pong
+  - face-model: 모델 버전 이름 규칙 (7-2). 기능 테스트는 아직 없음
+
+- 아직 정하지 않은 것
+  - 6장 원칙 5(playback에 seq 싣기)는 playback 계약 변경이라 face-detector·playback-decider·player 합의가 필요하다.
+    합의하면 docs/contracts/README.md, playback.schema.json, 테스트를 같은 PR에서 고친다.
