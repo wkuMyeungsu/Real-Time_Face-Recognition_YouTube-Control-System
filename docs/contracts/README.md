@@ -31,7 +31,7 @@ log·ping·pong은 디버깅용이다. 보내지 않아도 서비스는 동작�
 ```
 
 - face-detector는 `start`를 받으면 감지를 시작하고 `face`를 보낸다. `stop`이면 멈춘다. 받을 때마다 `status`를 다시 보낸다.
-- playback-decider는 둘 다 받으면 그 기기의 판정 상태를 처음으로 돌린다.
+- playback-decider는 둘 다 받으면 그 기기의 판정 상태를 처음으로 돌린다. `stop` 뒤에는 다음 `start`까지 `playback`을 보내지 않는다.
 - ESP32가 재부팅되면 `idle`로 시작한다. 다시 `start`를 보내야 한다.
 
 ## face — face-detector → playback-decider
@@ -71,6 +71,7 @@ face-model을 한 번 실행할 때마다 하나. `running`일 때만, 최대 �
 ```
 
 - 명령이 바뀔 때만 보낸다. 같은 명령을 연달아 보내지 않는다.
+- `start` 뒤 `face`가 `PAUSE_AFTER_MS` 동안 오지 않으면(face-detector가 멈추거나 끊김) 그동안 얼굴이 없었던 것으로 보고 `pause`를 보낸다.
 - 판정 기준(`PLAY_AFTER_MS` `PAUSE_AFTER_MS` `MIN_SCORE`)은 `.env`에 있다.
 
 ## log — 모든 파트 → recorder

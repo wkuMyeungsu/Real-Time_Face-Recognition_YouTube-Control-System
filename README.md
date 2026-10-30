@@ -96,7 +96,7 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 1. `device/face-detector/.env.example`을 같은 폴더에 `.env`로 복사해 Wi-Fi(2.4GHz), PC IP, `DEVICE_ID`를 채운다.
 2. 보드를 USB로 꽂고 그 폴더에서 `python setup_arduino.py`를 실행한다. esp32 코어·라이브러리 설치(버전은 `sketch.yaml`), `secrets.h` 생성, 보드 포트 확인을 한 번에 한다. 빠진 것이 있으면 무엇을 할지 알려 준다. 자세한 내용은 `device/face-detector/README.md`.
 3. Arduino IDE에서 `device/face-detector/face-detector.ino`를 열고 2에서 알려 준 포트를 골라 업로드한다.
-4. 시리얼 모니터(115200)에 `[boot] FW_VERSION=…`과 `[mqtt] 연결됨`이 나오고, player의 ESP32 상태가 `idle`로 바뀌면 연결된 것이다.
+4. 시리얼 모니터(115200)에 `zt.face-detector.boot … 부팅 fw=…`과 `zt.face-detector.mqtt … 연결됨 broker=…`이 나오고, player의 ESP32 상태가 `idle`로 바뀌면 연결된 것이다.
 
 ## 브랜치
 

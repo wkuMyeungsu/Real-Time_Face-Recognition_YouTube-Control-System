@@ -166,10 +166,20 @@ status = "done"
 
 [D12]
 part = "playback-decider"
+title = "start 뒤 face가 PAUSE_AFTER_MS 동안 안 오면 pause"
+status = "done"
+
+[D13]
+part = "playback-decider"
+title = "stop 뒤에는 playback을 보내지 않음"
+status = "done"
+
+[D14]
+part = "playback-decider"
 title = "판정 로그를 log 토픽으로 (action·reason·seq)"
 status = "todo"
 
-[D13]
+[D15]
 part = "playback-decider"
 title = "공통 로그 설정 (setup_logging, /health 요청 로그 끔)"
 status = "todo"

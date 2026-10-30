@@ -1,4 +1,4 @@
-"""playback-decider (D1~D13). 기준: docs/contracts/README.md의 playback·log 절, .env.example의 판정 기준,
+"""playback-decider (D1~D15). 기준: docs/contracts/README.md의 playback·log 절, .env.example의 판정 기준,
 docs/logging-design.txt 7-3(판정 로그).
 
 테스트마다 다른 기기(t-…)를 쓴다. playback-decider는 zt/+/…로 모든 기기를 받는다 (계약 '공통').
@@ -195,16 +195,55 @@ def test_bad_messages_are_dropped(board, cfg):
     assert after["bad_msgs"] >= before["bad_msgs"] + 3
 
 
+@pytest.mark.feature("D11")
+def test_wrong_field_types_are_dropped(board, cfg):
+    """스키마와 타입이 다른 face(예: face가 문자열)는 얼굴로 치지 않는다."""
+    b = board("d11t")
+    b.control("start")
+    bad = {"seq": 1, "face": "yes", "score": 0.9, "count": 1, "infer_ms": 90}
+    end = time.monotonic() + cfg["play_ms"] / 1000 + 1.0
+    while time.monotonic() < end:
+        b.probe.publish(b.t["face"], bad, qos=0)
+        time.sleep(0.1)
+    assert not b.playback("play", 0.5), "face가 문자열인 메시지로 play함"
+
+
+@pytest.mark.feature("D12")
+def test_pause_when_face_stops(board, cfg):
+    b = board("d12")
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        play_now(b, f, cfg)
+        f.paused = True  # face-detector가 멈춤 (얼굴 있을 때만 보내다 끊긴 경우도 같다)
+        stopped = time.monotonic()
+        got = b.playback("pause", cfg["pause_ms"] / 1000 + SLACK)
+    assert got, "face가 끊겼는데 pause가 오지 않음"
+    waited = got[0] - stopped
+    assert waited >= cfg["pause_ms"] / 1000 - EARLY, f"PAUSE_AFTER_MS({cfg['pause_ms']}) 전에 정지 ({waited * 1000:.0f}ms)"
+
+
+@pytest.mark.feature("D13")
+def test_nothing_after_stop(board, cfg):
+    b = board("d13")
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        play_now(b, f, cfg)
+        f.paused = True
+        b.control("stop")
+        quiet, got = b.quiet(cfg["pause_ms"] / 1000 + SLACK)
+    assert quiet, f"stop 뒤에 playback을 보냄: {got}"
+
+
 def _fields(m):
     return m.get("fields") or {}
 
 
-@pytest.mark.feature("D12")
+@pytest.mark.feature("D14")
 def test_decision_is_logged_with_reason(board, cfg):
     """판정을 zt/<기기>/log/playback-decider로 남긴다: action과 reason(face_present·face_absent·face_timeout) (docs/logging-design.txt 7-3)."""
-    b = board("d12")
+    b = board("d14")
     t = f"zt/{b.device}/log/playback-decider"
-    logs = Probe(cfg["host"], cfg["mqtt_port"], "d12-log")
+    logs = Probe(cfg["host"], cfg["mqtt_port"], "d14-log")
     assert logs.start()
     logs.subscribe(t)
     b.control("start")
@@ -220,7 +259,7 @@ def test_decision_is_logged_with_reason(board, cfg):
     assert paused and _fields(paused).get("reason") == "face_absent", "pause 판정 로그(reason=face_absent)가 없음"
 
 
-@pytest.mark.feature("D13")
+@pytest.mark.feature("D15")
 def test_uses_common_log_config():
     """공통 로그 설정을 쓴다: app/log_config.py(원본 그대로, C8), 진입점에서 setup_logging, uvicorn이 덮어쓰지 않게 log_config=None."""
     app = ROOT / "services" / "playback-decider" / "app"
