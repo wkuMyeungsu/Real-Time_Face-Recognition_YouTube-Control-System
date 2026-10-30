@@ -184,6 +184,11 @@ part = "playback-decider"
 title = "공통 로그 설정 (setup_logging, /health 요청 로그 끔)"
 status = "done"
 
+[D16]
+part = "playback-decider"
+title = "playback에 판정 근거 face의 seq를 실음"
+status = "done"
+
 
 # ── player ────────────────────────────────────────
 [P1]

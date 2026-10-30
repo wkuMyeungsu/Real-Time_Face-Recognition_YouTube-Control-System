@@ -12,6 +12,10 @@
         "play",
         "pause"
       ]
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
     }
   }
 }
