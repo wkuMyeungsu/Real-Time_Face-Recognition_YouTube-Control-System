@@ -1,3 +1,5 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 paho-mqtt==2.1.0
+# 시간대 정보 (LOG_TZ). slim 이미지에는 없어서 넣는다
+tzdata==2026.6
