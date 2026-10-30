@@ -79,8 +79,11 @@ def test_face_raw_in_jsonl_summary_in_log(probe):
     summary = tail.wait(lambda l: "face 요약" in l and mine(device)(l), timeout=9)
     assert summary, "5초 안에 face 요약이 없음"
     assert f"msgs={len(seqs)}" in summary and "lost=3" in summary and "infer_ms_avg=95" in summary, summary
-    # recorder 자신이 쓴 줄만 본다. 다른 파트의 log 토픽(예: playback-decider 판정 로그 seq=)은 원문이 아니다
-    assert not [l for l in tail.lines() if mine(device)(l) and " zt.recorder." in l and "seq=" in l], "face 원문이 zt.log에 들어감"
+    # recorder 자신이 쓴 줄에서 face 원문에만 있는 흔적(infer_ms=, score=, "face 받음")을 찾는다.
+    # seq=는 보지 않는다: 이 face로 playback-decider가 play를 판정하면 playback에도 seq가 실린다 (계약 playback, D16)
+    leaked = [l for l in tail.lines() if mine(device)(l) and " zt.recorder." in l
+              and (" infer_ms=" in l or " score=" in l or "face 받음" in l)]
+    assert not leaked, f"face 원문이 zt.log에 들어감: {leaked[:2]}"
     faces = [json.loads(l) for l in raw.lines() if f'"zt/{device}/face"' in l]
     assert [f["payload"]["seq"] for f in faces] == seqs
 
