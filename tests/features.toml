@@ -267,7 +267,7 @@ status = "done"
 [F4]
 part = "face-detector"
 title = "LOG 매크로, INFO 이상은 log 토픽으로, ping → pong"
-status = "todo"
+status = "done"
 
 
 # ── face-model ────────────────────────────────────
