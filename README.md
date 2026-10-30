@@ -106,6 +106,6 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 - 작업 브랜치는 `dev`에서 만들고 `dev`로 PR을 올린다. 병합 후 삭제한다.
 - 커밋 메시지: `<타입>(<파트>): <요약>`. 예: `feat(playback-decider): 재생·정지 판정 구현`
 - PR 병합은 Create a merge commit만 사용한다. CI가 통과해야 병합한다.
-- `.env`, `secrets.h`, 모델 가중치(`*.onnx` `*.tflite`)는 커밋하지 않는다.
+- `.env`, `secrets.h`는 커밋하지 않는다. 모델은 낱개 가중치(`*.onnx` `*.tflite`)를 커밋하지 않고, Edge Impulse에서 내보낸 Arduino 라이브러리 zip만 `device/face-model/`에 이름 그대로 커밋한다 (50MB 아래).
 - 테스트는 자기 폴더의 `tests/`에 둔다 (`services/<서비스>/tests/`, `device/<파트>/tests/`). CI가 있는 것만 돌린다.
 - 계약 문서 기준 기능 테스트는 저장소 루트 `tests/`에 미리 있다. 기능을 완성하면 `tests/features.toml`에서 그 기능을 `done`으로 바꿔 같은 PR에 넣는다. `done`이 된 기능은 다시 깨진 채로 병합될 수 없다 (`docs/ci-cd.md`).
