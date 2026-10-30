@@ -4,7 +4,7 @@
 
 ## 팀원에게 전할 규칙
 
-1. **테스트는 자기 서비스 폴더의 `tests/`에 둔다.** CI가 있는 것만 돌린다 (`services/<서비스>/tests/` → 컨테이너 안에서 `pytest -q`).
+1. **테스트는 자기 폴더의 `tests/`에 둔다.** CI가 있는 것만 돌린다 (`services/<서비스>/tests/` → 컨테이너 안에서 `pytest -q`, `device/<파트>/tests/` → face-detector 잡에서 `pytest -q`).
 2. **CI가 초록불이어야 병합된다.** 브랜치 보호 규칙으로 강제하고, 최신 dev 위에서 통과해야 한다 ("이전 버전이 통과한 다음에 올라온다").
 3. **기능을 완성하면 `tests/features.toml`에서 그 기능을 `done`으로 바꾼다.** 같은 PR에 넣는다 (아래).
 
@@ -13,7 +13,7 @@
 ```
 PR → server        : compose build → up --wait → services/*/tests 있는 것만
                      → 기능 목록이 뒤로 가지 않았나 → 저장소 루트 tests/ (계약 기준 기능 테스트 + smoke)
-   → face-detector : README 환경 표 그대로 컴파일 (esp32 3.3.12, PSRAM=opi, PubSubClient 2.8, ArduinoJson 7.2.1)
+   → face-detector : device/*/tests 있는 것만 → README 환경 표 그대로 컴파일 (esp32 3.3.12, PSRAM=opi, PubSubClient 2.8, ArduinoJson 7.2.1)
    → 둘 다 초록불 + 최신 dev 위 → 병합
 ```
 
@@ -34,11 +34,11 @@ PR → server        : compose build → up --wait → services/*/tests 있는 �
 |---|---|---|---|
 | broker | B1 주고받기, B2 status retain, B3 LWT offline, B4 WebSocket(/mqtt) | `test_broker.py` | 완료 4/4 |
 | 계약·설정 | C1~C4 스키마·문서 예시·토픽 표, C5 ESP32 환경 표 = CI·CD, C6 설정 파일, C7 기능 목록 | `test_contracts.py` | 완료 7/7 |
-| playback-decider | D1 /health, D2 /stats, D3~D6 재생·정지 시간, D7 MIN_SCORE, D8 바뀔 때만·QoS·retain, D9 control 리셋, D10 기기별, D11 틀린 메시지 | `test_playback_decider.py` | 완료 3/11 |
+| playback-decider | D1 /health, D2 /stats, D3~D6 재생·정지 시간, D7 MIN_SCORE, D8 바뀔 때만·QoS·retain, D9 control 리셋, D10 기기별, D11 틀린 메시지 | `test_playback_decider.py` | 완료 11/11 |
 | player | P1 /health, P2 요소 id, P3 /mqtt, P4 연결 표시, P5·P6 시작·중지, P7 ESP32 상태, P8 playback → 유튜브 | `test_player.py` | 완료 7/8 |
 | face-detector | F1 secrets.example.h, F2 부팅 때 FW_VERSION, F3 토픽·LWT | `test_face_detector.py` | 완료 3/3 |
 | face-model | M1 Edge Impulse 라이브러리 | `test_face_detector.py` | 0/1 |
-| 전체 | E1 smoke (start → face → play → pause), E2 player 버튼 → 유튜브 | `smoke/test_smoke.py` | 0/2 |
+| 전체 | E1 smoke (start → face → play → pause), E2 player 버튼 → 유튜브 | `smoke/test_smoke.py` | 완료 1/2 |
 
 ### 내 기능을 완성했을 때
 
