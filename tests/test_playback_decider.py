@@ -144,15 +144,18 @@ def test_sends_only_on_change(board, cfg):
     with FaceFeeder(b.probe, b.device) as f:
         got = play_now(b, f, cfg)
         quiet, again = b.quiet(2.0)
+        # retain 확인은 얼굴이 계속 들어오는 동안 한다. 얼굴을 멈추면 PAUSE_AFTER_MS 뒤 새 pause가 오는데,
+        # 그 실시간 메시지를 retain으로 착각하지 않도록 받은 메시지의 retain 플래그를 본다
+        late = Probe(cfg["host"], cfg["mqtt_port"], "d8-late")
+        assert late.start()
+        late.subscribe(b.t["playback"])
+        kept = late.next(b.t["playback"], timeout=1.5)
+        late.stop()
     assert quiet, f"같은 명령을 다시 보냄: {again}"
     rule = topic_table()["playback"]
     assert got[3] == rule["qos"], f"playback QoS가 문서({rule['qos']})와 다름: {got[3]}"
-    late = Probe(cfg["host"], cfg["mqtt_port"], "d8-late")
-    assert late.start()
-    late.subscribe(b.t["playback"])
-    kept = late.next(b.t["playback"], timeout=1.5)
-    late.stop()
-    assert (kept is not None) == rule["retain"], "playback retain이 문서와 다름"
+    retained = kept is not None and kept[2]
+    assert retained == rule["retain"], f"playback retain이 문서와 다름 (늦게 구독한 쪽이 받은 것: {kept})"
 
 
 @pytest.mark.feature("D9")

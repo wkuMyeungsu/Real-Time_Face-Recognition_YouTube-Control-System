@@ -53,20 +53,23 @@ def test_topic_table_matches_schemas():
 def test_esp32_environment_matches_ci():
     """환경 싱크: README '개발 환경' 표의 보드·코어·라이브러리 버전과 CI가 컴파일하는 버전이 같아야 한다."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     fqbn = re.search(r"FQBN `([^`]+)`", readme).group(1)
     core = re.search(r"\| esp32 코어 \| ([\d.]+)", readme).group(1)
     libs = dict(re.findall(r"(PubSubClient|ArduinoJson) ([\d.]+)", re.search(r"\| 라이브러리 \|([^\n]*)", readme).group(1)))
-    assert f"fqbn: {fqbn}" in ci, f"CI의 FQBN이 README({fqbn})와 다름"
-    assert re.search(rf"name: esp32:esp32\s+source-url: \S+\s+version: {re.escape(core)}\b", ci), f"CI의 esp32 코어가 README({core})와 다름"
-    for name, version in libs.items():
-        assert re.search(rf"name: {name}\s+version: {re.escape(version)}\b", ci), f"CI의 {name} 버전이 README({version})와 다름"
     if re.search(r"\| Tools → PSRAM \| OPI PSRAM", readme):  # 카메라에 필요. 빠지면 PSRAM 없이 컴파일된다
-        assert f"fqbn: {fqbn}:PSRAM=opi" in ci, "README는 OPI PSRAM인데 CI의 FQBN에 PSRAM=opi가 없음"
+        fqbn += ":PSRAM=opi"
+    # CI 컴파일과 펌웨어 Release(CD)는 둘 다 arduino-cli로 같은 환경을 쓴다 (env의 FQBN, core·lib install 줄)
+    workflows = {"CI": ROOT / ".github" / "workflows" / "ci.yml"}
     cd = ROOT / ".github" / "workflows" / "cd.yml"
-    if cd.is_file():  # 펌웨어 Release도 같은 환경으로 만든다
-        text = cd.read_text(encoding="utf-8")
-        assert fqbn in text and f"esp32:esp32@{core}" in text and all(f"{n}@{v}" in text for n, v in libs.items())
+    if cd.is_file():
+        workflows["CD"] = cd
+    for label, path in workflows.items():
+        text = path.read_text(encoding="utf-8")
+        used = re.search(r"^\s*FQBN: (\S+)", text, re.M)
+        assert used and used.group(1) == fqbn, f"{label}의 FQBN({used and used.group(1)})이 README 기준({fqbn})과 다름"
+        assert f"esp32:esp32@{core}" in text, f"{label}의 esp32 코어가 README({core})와 다름"
+        for name, version in libs.items():
+            assert f"{name}@{version}" in text, f"{label}의 {name} 버전이 README({version})와 다름"
 
 
 @pytest.mark.feature("C6")

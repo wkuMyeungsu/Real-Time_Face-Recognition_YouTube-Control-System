@@ -80,42 +80,42 @@ status = "done"
 [D3]
 part = "playback-decider"
 title = "얼굴이 PLAY_AFTER_MS 이상 이어지면 play"
-status = "todo"
+status = "done"
 
 [D4]
 part = "playback-decider"
 title = "PLAY_AFTER_MS 전에는 play하지 않음"
-status = "todo"
+status = "done"
 
 [D5]
 part = "playback-decider"
 title = "얼굴이 PAUSE_AFTER_MS 이상 없으면 pause"
-status = "todo"
+status = "done"
 
 [D6]
 part = "playback-decider"
 title = "짧게 없어졌다 돌아오면 멈추지 않음"
-status = "todo"
+status = "done"
 
 [D7]
 part = "playback-decider"
 title = "score가 MIN_SCORE보다 낮으면 얼굴 없음"
-status = "todo"
+status = "done"
 
 [D8]
 part = "playback-decider"
 title = "명령이 바뀔 때만 보냄 (QoS 1, retain 아님, 형식)"
-status = "todo"
+status = "done"
 
 [D9]
 part = "playback-decider"
 title = "control(start·stop)을 받으면 판정을 처음으로"
-status = "todo"
+status = "done"
 
 [D10]
 part = "playback-decider"
 title = "기기별로 따로 판정"
-status = "todo"
+status = "done"
 
 [D11]
 part = "playback-decider"
@@ -193,7 +193,7 @@ status = "todo"
 [E1]
 part = "e2e"
 title = "smoke: control start → face → playback play → 얼굴 없음 → pause"
-status = "todo"
+status = "done"
 
 [E2]
 part = "e2e"
