@@ -93,4 +93,4 @@ player에서 **얼굴 인식 시작**을 누르면 가짜 face-detector가 `face
 - 커밋 메시지: `<타입>(<파트>): <요약>`. 예: `feat(playback-decider): 재생·정지 판정 구현`
 - PR 병합은 Create a merge commit만 사용한다. CI가 통과해야 병합한다.
 - `.env`, `secrets.h`, 모델 가중치(`*.onnx` `*.tflite`)는 커밋하지 않는다.
-- 테스트는 자기 서비스 폴더의 `tests/`에 둔다. CI가 있는 것만 돌린다.
+- 테스트는 자기 폴더의 `tests/`에 둔다 (`services/<서비스>/tests/`, `device/<파트>/tests/`). CI가 있는 것만 돌린다.
