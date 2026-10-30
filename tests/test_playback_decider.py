@@ -1,4 +1,4 @@
-"""playback-decider (D1~D15). 기준: docs/contracts/README.md의 playback·log 절, .env.example의 판정 기준,
+"""playback-decider (D1~D16). 기준: docs/contracts/README.md의 playback·log 절, .env.example의 판정 기준,
 docs/logging-design.txt 7-3(판정 로그).
 
 테스트마다 다른 기기(t-…)를 쓴다. playback-decider는 zt/+/…로 모든 기기를 받는다 (계약 '공통').
@@ -267,3 +267,18 @@ def test_uses_common_log_config():
     main = (app / "__main__.py").read_text(encoding="utf-8")
     assert "setup_logging(" in main and "basicConfig" not in main, "__main__.py가 basicConfig 대신 setup_logging()을 쓰지 않음"
     assert re.search(r"uvicorn\.run\([^)]*log_config\s*=\s*None", main), "uvicorn.run(..., log_config=None)이 아님 (/health 요청 로그가 다시 켜짐)"
+
+
+@pytest.mark.feature("D16")
+def test_playback_carries_face_seq(board, cfg):
+    """play·pause에 근거 face의 seq가 실려 온다 (계약 playback 절). 보낸 seq 범위 안이어야 한다."""
+    b = board("d16")
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        got = play_now(b, f, cfg)
+        seq = got[1].get("seq")
+        assert isinstance(seq, int) and 0 <= seq < f.seq, f"play의 seq가 보낸 face seq 범위가 아님: {got[1]}"
+        f.present = False
+        paused = b.playback("pause", cfg["pause_ms"] / 1000 + SLACK)
+        assert paused, "얼굴을 치웠는데 pause가 오지 않음"
+        assert isinstance(paused[1].get("seq"), int) and paused[1]["seq"] > seq, f"pause의 seq가 play보다 뒤가 아님: {paused[1]}"
