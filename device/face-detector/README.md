@@ -7,6 +7,7 @@ ESP32에서 카메라 프레임마다 face-model을 실행해 얼굴 감지 결�
 | 파일 | 하는 일 | 커밋 |
 |---|---|---|
 | `face-detector.ino` | 펌웨어 | O |
+| `log.h` | 시리얼 로그 매크로 (`LOGD` `LOGI` `LOGW` `LOGE` `LOGC`). 팀 공통 로그 형식 | O |
 | `sketch.yaml` | esp32 코어·라이브러리 버전 (Python의 `requirements.txt` 같은 것) | O |
 | `setup_arduino.py` | 업로드 전 준비: 코어·라이브러리 설치, `secrets.h` 생성, 보드 포트 확인 | O |
 | `detect_network.py` | 이 PC가 붙은 Wi-Fi의 SSID·비밀번호와 Wi-Fi IP를 찾는다 (Windows). `setup_arduino.py`가 쓴다 | O |
@@ -57,7 +58,24 @@ cd device/face-detector
 python -m pytest -q tests
 ```
 
+## 로그
+
+시리얼 출력은 모두 `log.h`의 매크로로 한다 (`Serial.print`를 직접 쓰지 않는다. `tests/`가 검사한다). 형식은 팀 공통(수업 Day11 logging 형식)이고, 시각 자리에는 부팅 후 경과 시간을 찍는다.
+
+```
+[up 1016ms] INFO     zt.face-detector.boot face-detector.ino:133 부팅 fw=0.2.0 model=none device=esp32-a reset_reason=usb heap_kb=308 psram_kb=8189
+[up 3564ms] INFO     zt.face-detector.wifi face-detector.ino:85 연결됨 ssid=… ip=172.30.1.48 rssi_dbm=-65 connect_ms=2500
+[up 3970ms] INFO     zt.face-detector.mqtt face-detector.ino:103 연결됨 broker=172.30.1.81:1883 client_id=esp32-a
+[up 101190ms] ERROR    zt.face-detector.mqtt face-detector.ino:58 잘못된 메시지 topic=zt/esp32-a/control reason=unknown_cmd cmd=jump
+```
+
+- 쓰는 법: `LOGI("wifi", "연결됨 ip=%s rssi_dbm=%d", ip, rssi)`. 첫 인자는 로거 이름 마지막 칸(`boot` `wifi` `mqtt` `camera` `infer`).
+- 메시지는 한국어 한 문장 + `key=value`, 단위는 키 끝(`_ms` `_kb` `_dbm`). 비밀번호는 찍지 않는다.
+- 기본은 INFO 이상만 찍는다. 자세히 보려면 `#include "log.h"` 앞에 `#define ZT_LOG_LEVEL ZT_LOG_DEBUG`.
+- 레벨 기준: 정상 흐름 INFO, 재연결·신호 약함(`rssi_dbm` < -75)·비정상 재부팅 WARNING, 잘못된 메시지 ERROR.
+- MQTT `log` 토픽으로 보내기와 `ping`/`pong`은 계약 합의 후에 넣는다.
+
 ## 지금 상태
 
-- 됨: Wi-Fi·MQTT 연결, `status` 발행(끊기면 `offline`), `control`(start/stop) 수신
+- 됨: Wi-Fi·MQTT 연결, `status` 발행(끊기면 `offline`), `control`(start/stop) 수신, 공통 형식 시리얼 로그
 - 안 됨: 카메라 촬영, face-model 실행 (`loop()`의 TODO)
