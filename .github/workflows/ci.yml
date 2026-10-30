@@ -1,0 +1,67 @@
+# PR마다 두 가지를 검사한다. 둘 다 초록불이어야 dev·main에 병합된다 (브랜치 보호 규칙, docs/ci-setup-guide.txt).
+#   server        : compose 빌드 → 전체 기동(healthcheck 통과까지) → tests/ 폴더가 있는 서비스만 pytest
+#   face-detector : device/face-detector 스케치를 XIAO_ESP32S3용으로 컴파일 (업로드는 각자 PC에서)
+# CI는 검사를 담는 그릇이다. 테스트는 자기 서비스 폴더의 tests/에 두면 이 파일을 고치지 않아도 돈다.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]   # 작업 브랜치는 PR에서 돈다 (같은 커밋을 두 번 돌리지 않게)
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}   # PR에 새 커밋이 오면 이전 실행 취소
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build
+      - name: 전체 기동 (healthcheck 통과까지 기다린다)
+        run: docker compose up -d --wait --wait-timeout 120
+      - name: tests/ 가 있는 서비스만 pytest
+        run: |
+          for d in services/*/; do
+            s=$(basename "$d")
+            if [ -d "$d/tests" ]; then
+              echo "::group::$s"
+              docker compose run --rm --no-deps "$s" pytest -q
+              echo "::endgroup::"
+            fi
+          done
+      - name: 실패하면 로그
+        if: failure()
+        run: docker compose ps && docker compose logs --no-color --tail 200
+      - name: 정리
+        if: always()
+        run: docker compose down
+
+  face-detector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: secrets.h 준비 (커밋하지 않는 파일이라 예시로 대신)
+        run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
+      - uses: arduino/compile-sketches@v1   # 컴파일까지만. 업로드는 각자 PC에서
+        with:
+          fqbn: esp32:esp32:XIAO_ESP32S3
+          platforms: |
+            - name: esp32:esp32
+              source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+              version: 3.3.12
+          libraries: |
+            - name: PubSubClient
+              version: 2.8
+            - name: ArduinoJson
+              version: 7.2.1
+          sketch-paths: |
+            - device/face-detector
+          enable-deltas-report: false
