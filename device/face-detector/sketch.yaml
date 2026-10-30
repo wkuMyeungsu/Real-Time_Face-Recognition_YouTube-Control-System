@@ -1,0 +1,12 @@
+# face-detector가 쓰는 esp32 코어·라이브러리 버전 (arduino-cli 스케치 프로젝트 파일 형식).
+# 버전을 바꾸면 여기와 루트 README "개발 환경" 표, .github/workflows/ci.yml을 같이 고친다 (tests/가 셋이 같은지 검사한다).
+# 설치: python setup_arduino.py
+profiles:
+  xiao:
+    fqbn: esp32:esp32:XIAO_ESP32S3
+    platforms:
+      - platform: esp32:esp32 (3.3.12)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - PubSubClient (2.8)
+      - ArduinoJson (7.2.1)
