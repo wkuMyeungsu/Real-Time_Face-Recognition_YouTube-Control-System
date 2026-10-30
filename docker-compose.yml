@@ -2,7 +2,8 @@
 # 전체: docker compose up --build -d   내 서비스만: docker compose up --build <서비스>
 # 컨테이너끼리는 서비스 이름으로 부른다. 예: broker:1883  (localhost는 자기 자신)
 # 호스트 포트는 .env로 바꿀 수 있다 (.env.example 참고). .env가 없어도 기본값으로 뜬다.
-# 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). player·playback-decider는 이 PC 안(127.0.0.1)에만 연다.
+# 바깥에 여는 포트는 broker의 1883뿐이다 (ESP32가 Wi-Fi로 들어온다). player·playback-decider·recorder는 이 PC 안(127.0.0.1)에만 연다.
+# 모든 파트의 로그는 recorder가 저장소의 logs/zt.log 한 타임라인에 모은다: tail -f logs/zt.log  (docs/logging-design.txt)
 # image: CD가 main을 이 이름으로 ghcr.io에 올린다 (TAG = 커밋 SHA). 데모 PC는 빌드하지 않고 받아서 띄운다:
 #   TAG=<커밋 SHA> docker compose pull && TAG=<커밋 SHA> docker compose up -d      (docs/ci-cd.md)
 name: zero-touch-media
@@ -15,7 +16,8 @@ services:
     volumes:
       - ./services/broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     healthcheck:
-      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      # client id를 healthcheck로 고정한다. recorder가 10초마다 생기는 이 접속 로그를 타임라인에서 뺀다
+      test: ["CMD", "mosquitto_sub", "-i", "healthcheck", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,3 +57,27 @@ services:
       timeout: 3s
       retries: 5
       start_period: 3s
+
+  recorder:
+    # zt/#(log·face·status…)와 broker 로그·통계를 받아 logs/zt.log(사람용)·logs/zt.jsonl(원본)에 쌓는다
+    build: ./services/recorder
+    image: ${REGISTRY:-ghcr.io/wkumyeungsu/real-time_face-recognition_youtube-control-system}/recorder:${TAG:-dev}
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports: ["127.0.0.1:${RECORDER_PORT:-8002}:8002"]
+    environment:
+      SERVICE_NAME: recorder
+      PORT: "8002"
+      BROKER_HOST: broker
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      broker: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ['PORT'])"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

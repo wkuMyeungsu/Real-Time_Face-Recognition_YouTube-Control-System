@@ -1,4 +1,4 @@
-"""player (P1~P8). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
+"""player (P1~P9). 브라우저(Playwright)로 페이지를 열어 확인한다. 유튜브는 가짜 플레이어로 바꾼다.
 
 기준: README의 player 설명("유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, /mqtt를 broker로 넘김"),
 docs/contracts/README.md의 control·status·playback 절, index.html의 요소 id.
@@ -113,3 +113,19 @@ def test_playback_controls_youtube(page, cfg):
     probe.publish(topic(device, "playback"), {"action": "pause"})
     pg.wait_for_function("(window.__yt || []).some((c) => c[0] === 'pauseVideo')", timeout=3000)
     probe.stop()
+
+
+@pytest.mark.feature("P9")
+def test_button_logged_to_log_topic(page, cfg):
+    """버튼 → control 보냄을 zt/<기기>/log/player에도 남긴다. 로거는 zt.player.* (docs/logging-design.txt 7-4)."""
+    pg, device = page
+    connected(pg)
+    t = f"zt/{device}/log/player"
+    probe = Probe(cfg["host"], cfg["mqtt_port"], "p9")
+    assert probe.start()
+    probe.subscribe(t)
+    pg.click("#start")
+    got = probe.expect(t, lambda m: str(m.get("logger", "")).startswith("zt.player"), timeout=3)
+    probe.stop()
+    assert got, "시작 버튼을 눌렀는데 log 토픽에 player 로그가 없음"
+    validate("log", got)

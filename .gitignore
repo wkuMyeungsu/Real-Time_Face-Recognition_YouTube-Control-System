@@ -5,6 +5,9 @@
 device/**/secrets.h
 services/broker/passwd
 
+# recorder가 쌓는 로그 (logs/zt.log, logs/zt.jsonl)
+logs/
+
 # Python
 __pycache__/
 *.pyc

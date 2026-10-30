@@ -1,13 +1,15 @@
-"""playback-decider (D1~D11). 기준: docs/contracts/README.md의 playback 절, .env.example의 판정 기준.
+"""playback-decider (D1~D15). 기준: docs/contracts/README.md의 playback·log 절, .env.example의 판정 기준,
+docs/logging-design.txt 7-3(판정 로그).
 
 테스트마다 다른 기기(t-…)를 쓴다. playback-decider는 zt/+/…로 모든 기기를 받는다 (계약 '공통').
 """
+import re
 import time
 
 import pytest
 
 from contract_doc import topic_table
-from helpers import FaceFeeder, Probe, http_json, topic, unique_device, validate
+from helpers import ROOT, FaceFeeder, Probe, http_json, topic, unique_device, validate
 
 SLACK = 1.5   # 판정이 늦게 와도 기다려 주는 여유 (초)
 EARLY = 0.15  # 기준 시간보다 이만큼 일찍 와도 봐준다 (초, face 간격 0.1초)
@@ -230,3 +232,38 @@ def test_nothing_after_stop(board, cfg):
         b.control("stop")
         quiet, got = b.quiet(cfg["pause_ms"] / 1000 + SLACK)
     assert quiet, f"stop 뒤에 playback을 보냄: {got}"
+
+
+def _fields(m):
+    return m.get("fields") or {}
+
+
+@pytest.mark.feature("D14")
+def test_decision_is_logged_with_reason(board, cfg):
+    """판정을 zt/<기기>/log/playback-decider로 남긴다: action과 reason(face_present·face_absent·face_timeout) (docs/logging-design.txt 7-3)."""
+    b = board("d14")
+    t = f"zt/{b.device}/log/playback-decider"
+    logs = Probe(cfg["host"], cfg["mqtt_port"], "d14-log")
+    assert logs.start()
+    logs.subscribe(t)
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        play_now(b, f, cfg)
+        played = logs.expect(t, lambda m: _fields(m).get("action") == "play", timeout=2)
+        f.present = False   # 얼굴 없음이 PAUSE_AFTER_MS 이어지면 pause
+        paused = logs.expect(t, lambda m: _fields(m).get("action") == "pause", timeout=cfg["pause_ms"] / 1000 + SLACK)
+    logs.stop()
+    assert played, "play 판정 로그가 log 토픽에 없음"
+    validate("log", played)
+    assert played["logger"].startswith("zt.playback-decider") and _fields(played).get("reason") == "face_present"
+    assert paused and _fields(paused).get("reason") == "face_absent", "pause 판정 로그(reason=face_absent)가 없음"
+
+
+@pytest.mark.feature("D15")
+def test_uses_common_log_config():
+    """공통 로그 설정을 쓴다: app/log_config.py(원본 그대로, C8), 진입점에서 setup_logging, uvicorn이 덮어쓰지 않게 log_config=None."""
+    app = ROOT / "services" / "playback-decider" / "app"
+    assert (app / "log_config.py").is_file(), "app/log_config.py가 없음 (common/log_config.py를 복사)"
+    main = (app / "__main__.py").read_text(encoding="utf-8")
+    assert "setup_logging(" in main and "basicConfig" not in main, "__main__.py가 basicConfig 대신 setup_logging()을 쓰지 않음"
+    assert re.search(r"uvicorn\.run\([^)]*log_config\s*=\s*None", main), "uvicorn.run(..., log_config=None)이 아님 (/health 요청 로그가 다시 켜짐)"

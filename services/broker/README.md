@@ -22,7 +22,10 @@ docker compose exec broker mosquitto_sub -v -t 'zt/#'                     # 오�
 docker compose exec broker mosquitto_sub -v -t 'zt/esp32-a/status'        # 보드 하나의 상태 (retain이라 바로 나옴)
 docker compose exec broker mosquitto_pub -t 'zt/esp32-a/control' -m '{"cmd":"start"}'   # 시작 버튼 대신
 docker compose logs -f broker                                              # 접속·끊김 기록
+tail -f logs/zt.log                                                        # 위 로그와 모든 파트의 로그를 한 타임라인으로 (recorder)
 ```
+
+broker 로그는 stdout과 함께 `$SYS/broker/log/<E|W|N|I>` 토픽으로도 나간다 (`mosquitto.conf`의 `log_dest topic`). recorder가 이것을 받아 `logs/zt.log`에 `zt.broker`로 적고, `$SYS` 통계(접속 수·초당 메시지·바이트)는 1분마다 요약한다 (`services/recorder/README.md`). 10초마다 붙는 헬스체크(client id `healthcheck`)는 타임라인에서 뺀다.
 
 ## retain과 LWT (status가 움직이는 방식)
 

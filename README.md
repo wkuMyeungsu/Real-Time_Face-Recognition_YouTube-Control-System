@@ -25,8 +25,10 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 | `broker` | MQTT 브로커(Mosquitto)와 실행 환경(compose, `.env`, CI, 계약 문서) | `services/broker/`, 저장소 루트 | 임우진 | 1883 | `broker:1883`, `broker:9001`(WebSocket) |
 | `playback-decider` | 재생 판정. face 결과를 모아 재생·정지를 정한다 | `services/playback-decider/` | 김도은 | 127.0.0.1:8001 | `http://playback-decider:8001` |
 | `player` | 재생 화면. 유튜브 플레이어, 시작·중지 버튼, 판정대로 재생·정지 실행, `/mqtt`를 broker로 넘김 | `services/player/` | 이진아 | 127.0.0.1:8080 | `http://player` |
+| `recorder` | 로그 모으기. 모든 파트의 로그·메시지·broker 로그를 `logs/zt.log` 한 타임라인에, ping으로 ESP32 왕복 지연 측정 | `services/recorder/` | 임우진 (broker) | 127.0.0.1:8002 | `http://recorder:8002` |
 
 - 메시지 형식: `docs/contracts/README.md`
+- 로그 형식·레벨·파트별로 남길 로그: `docs/logging-design.txt`, 로그 보기: `services/recorder/README.md`
 - broker 사용법·메시지 보기·접속 문제 해결: `services/broker/README.md`
 - CI 구축 안내: `docs/ci-setup-guide.txt`, CI/CD와 기능 테스트: `docs/ci-cd.md`
 
@@ -38,12 +40,14 @@ ESP32-S3가 카메라 영상으로 얼굴을 직접 판단해 결과만 JSON으�
 cp .env.example .env
 docker compose up --build -d          # 전체
 docker compose up --build player      # 서비스 하나만
-docker compose ps                     # 상태 (3개 모두 healthy)
+docker compose ps                     # 상태 (4개 모두 healthy)
+tail -f logs/zt.log                   # 모든 파트의 로그를 한 타임라인으로
 docker compose down                   # 종료
 ```
 
 - PC 브라우저: `http://localhost:8080` (다른 보드는 `http://localhost:8080/?device=esp32-b`)
-- playback-decider 상태: `http://localhost:8001/stats`
+- playback-decider 상태: `http://localhost:8001/stats`, recorder 상태: `http://localhost:8002/stats`
+- 로그를 자세히(DEBUG) 보려면 `.env`의 `LOG_ENV=dev`로 바꾸고 `docker compose up -d`로 다시 띄운다.
 - 호스트 포트가 다른 프로그램과 겹치면 `.env`에서 포트만 바꾼다.
 
 처음 한 번만: ESP32가 들어오도록 Windows 방화벽에서 1883 인바운드 허용 (관리자 PowerShell)
