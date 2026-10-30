@@ -44,7 +44,7 @@ def settings() -> dict:
         "recorder_port": int(v.get("RECORDER_PORT", 8002)),
         "play_ms": int(v.get("PLAY_AFTER_MS", 500)),
         "pause_ms": int(v.get("PAUSE_AFTER_MS", 1500)),
-        "min_score": float(v.get("MIN_SCORE", 0.6)),
+        "min_score": float(v.get("MIN_SCORE", 0.5)),
     }
 
 
