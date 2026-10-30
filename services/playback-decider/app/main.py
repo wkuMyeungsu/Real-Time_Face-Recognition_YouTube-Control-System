@@ -40,6 +40,25 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe([("zt/+/face", 0), ("zt/+/control", 1)])
 
 
+FACE_FIELDS = {"seq", "face", "score", "count", "infer_ms"}
+
+
+def _count(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def valid_face(data: dict) -> bool:
+    """docs/contracts/schemas/face.schema.json과 같은 기준. 필드가 빠지거나 더 있거나 타입이 다르면 False."""
+    if set(data) != FACE_FIELDS:
+        return False
+    score = data["score"]
+    return (
+        isinstance(data["face"], bool)
+        and isinstance(score, (int, float)) and not isinstance(score, bool) and 0 <= score <= 1
+        and _count(data["seq"]) and _count(data["count"]) and _count(data["infer_ms"])
+    )
+
+
 def on_message(client, userdata, msg):
     _, device, kind = msg.topic.split("/", 2)
     try:
@@ -59,11 +78,10 @@ def on_message(client, userdata, msg):
             deciders.setdefault(device, Decider()).reset(running=cmd == "start", now_ms=now_ms())
         return
 
-    try:
-        face, score = bool(data["face"]), float(data.get("score", 0))
-    except (KeyError, TypeError, ValueError):
+    if not valid_face(data):
         stats["bad_msgs"] += 1
         return
+    face, score = data["face"], float(data["score"])
     stats["face_msgs"] += 1
 
     with lock:

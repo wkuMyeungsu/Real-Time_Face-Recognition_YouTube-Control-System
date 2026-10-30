@@ -122,6 +122,16 @@ part = "playback-decider"
 title = "형식이 틀린 메시지는 버리고 계속 동작"
 status = "done"
 
+[D12]
+part = "playback-decider"
+title = "start 뒤 face가 PAUSE_AFTER_MS 동안 안 오면 pause"
+status = "done"
+
+[D13]
+part = "playback-decider"
+title = "stop 뒤에는 playback을 보내지 않음"
+status = "done"
+
 
 # ── player ────────────────────────────────────────
 [P1]

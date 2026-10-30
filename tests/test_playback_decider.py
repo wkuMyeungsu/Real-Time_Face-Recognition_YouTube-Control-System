@@ -191,3 +191,42 @@ def test_bad_messages_are_dropped(board, cfg):
     status, after = http_json(url)
     assert status == 200, "형식이 틀린 메시지를 받고 멈춤"
     assert after["bad_msgs"] >= before["bad_msgs"] + 3
+
+
+@pytest.mark.feature("D11")
+def test_wrong_field_types_are_dropped(board, cfg):
+    """스키마와 타입이 다른 face(예: face가 문자열)는 얼굴로 치지 않는다."""
+    b = board("d11t")
+    b.control("start")
+    bad = {"seq": 1, "face": "yes", "score": 0.9, "count": 1, "infer_ms": 90}
+    end = time.monotonic() + cfg["play_ms"] / 1000 + 1.0
+    while time.monotonic() < end:
+        b.probe.publish(b.t["face"], bad, qos=0)
+        time.sleep(0.1)
+    assert not b.playback("play", 0.5), "face가 문자열인 메시지로 play함"
+
+
+@pytest.mark.feature("D12")
+def test_pause_when_face_stops(board, cfg):
+    b = board("d12")
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        play_now(b, f, cfg)
+        f.paused = True  # face-detector가 멈춤 (얼굴 있을 때만 보내다 끊긴 경우도 같다)
+        stopped = time.monotonic()
+        got = b.playback("pause", cfg["pause_ms"] / 1000 + SLACK)
+    assert got, "face가 끊겼는데 pause가 오지 않음"
+    waited = got[0] - stopped
+    assert waited >= cfg["pause_ms"] / 1000 - EARLY, f"PAUSE_AFTER_MS({cfg['pause_ms']}) 전에 정지 ({waited * 1000:.0f}ms)"
+
+
+@pytest.mark.feature("D13")
+def test_nothing_after_stop(board, cfg):
+    b = board("d13")
+    b.control("start")
+    with FaceFeeder(b.probe, b.device) as f:
+        play_now(b, f, cfg)
+        f.paused = True
+        b.control("stop")
+        quiet, got = b.quiet(cfg["pause_ms"] / 1000 + SLACK)
+    assert quiet, f"stop 뒤에 playback을 보냄: {got}"
