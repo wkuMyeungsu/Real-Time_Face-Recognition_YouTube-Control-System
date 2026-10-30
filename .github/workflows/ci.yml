@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   server:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # ubuntu-latest는 Ubuntu 26으로 옮겨 가는 중이라 버전을 고정한다
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -44,24 +44,32 @@ jobs:
         run: docker compose down
 
   face-detector:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      # README "실행 (ESP32) → 개발 환경" 표와 같은 값
+      FQBN: esp32:esp32:XIAO_ESP32S3
+      ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
       - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - uses: actions/cache@v4   # esp32 코어가 커서 한 번 받은 것을 다시 쓴다
+        with:
+          path: ~/.arduino15
+          key: arduino-esp32-3.3.12-PubSubClient-2.8-ArduinoJson-7.2.1
+      - name: esp32 코어·라이브러리 설치 (README 개발 환경 표와 같은 버전)
+        run: |
+          arduino-cli core update-index --additional-urls "$ESP32_INDEX" 2>&1 | tee /tmp/arduino.log
+          arduino-cli core install esp32:esp32@3.3.12 --additional-urls "$ESP32_INDEX" 2>&1 | tee -a /tmp/arduino.log
+          arduino-cli lib install PubSubClient@2.8 ArduinoJson@7.2.1 2>&1 | tee -a /tmp/arduino.log
       - name: secrets.h 준비 (커밋하지 않는 파일이라 예시로 대신)
         run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
-      - uses: arduino/compile-sketches@v1   # 컴파일까지만. 업로드는 각자 PC에서
-        with:
-          fqbn: esp32:esp32:XIAO_ESP32S3
-          platforms: |
-            - name: esp32:esp32
-              source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-              version: 3.3.12
-          libraries: |
-            - name: PubSubClient
-              version: 2.8
-            - name: ArduinoJson
-              version: 7.2.1
-          sketch-paths: |
-            - device/face-detector
-          enable-deltas-report: false
+      - name: 컴파일 (업로드는 각자 PC에서)
+        run: arduino-cli compile --fqbn "$FQBN" --warnings default device/face-detector 2>&1 | tee -a /tmp/arduino.log
+      - name: 실패하면 오류를 PR 화면에 남기기
+        if: failure()
+        run: |
+          msg=$(grep -E "error|Error|fatal|not found|undefined" /tmp/arduino.log | tail -n 20 || true)
+          [ -n "$msg" ] || msg=$(tail -n 20 /tmp/arduino.log)
+          msg="${msg//'%'/'%25'}"; msg="${msg//$'\r'/'%0D'}"; msg="${msg//$'\n'/'%0A'}"
+          echo "::error title=face-detector 컴파일 실패::$msg"
