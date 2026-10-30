@@ -1,4 +1,4 @@
-"""face-detector·face-model (F1~F3, M1). 보드 없이 파일만 본다. 컴파일은 CI의 face-detector 잡."""
+"""face-detector·face-model (F1~F4, M1). 보드 없이 파일만 본다. 컴파일은 CI의 face-detector 잡."""
 import re
 
 import pytest
@@ -43,3 +43,12 @@ def test_topics_and_last_will_follow_contract():
 def test_edge_impulse_library():
     libs = [p for p in (ROOT / "device" / "face-model").rglob("library.properties") if p.parent.name.endswith("_inferencing")]
     assert libs, "device/face-model/<이름>_inferencing/library.properties가 없음 (Edge Impulse → Arduino library)"
+
+
+@pytest.mark.feature("F4")
+def test_logs_and_ping_pong():
+    """LOG 매크로로 남기고 INFO 이상은 zt/<DEVICE_ID>/log/face-detector로 보낸다. ping은 받은 그대로 pong (docs/logging-design.txt 7-1)."""
+    src = "\n".join(p.read_text(encoding="utf-8") for p in sorted(DETECTOR.glob("*")) if p.suffix in (".ino", ".h", ".cpp") and p.name != "secrets.h")
+    assert re.search(r"#define\s+LOG[IWE]\b", src) and re.search(r"\bLOGI\s*\(", src), "LOGD·LOGI·LOGW·LOGE·LOGC 매크로가 없음"
+    assert '"/log/face-detector"' in src, "zt/<DEVICE_ID>/log/face-detector 토픽이 없음"
+    assert '"/ping"' in src and '"/pong"' in src, "ping을 받아 pong으로 돌려주지 않음"

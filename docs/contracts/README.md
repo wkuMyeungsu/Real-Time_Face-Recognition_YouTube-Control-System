@@ -10,10 +10,16 @@
 | `zt/<기기>/face` | face-detector → playback-decider | 0 | 아니오 | 제안 |
 | `zt/<기기>/status` | face-detector → player | 1 | 예 | 제안 |
 | `zt/<기기>/playback` | playback-decider → player | 1 | 아니오 | 제안 |
+| `zt/<기기>/log/<파트>` | 모든 파트 → recorder | 0 | 아니오 | 제안 |
+| `zt/<기기>/ping` | recorder → face-detector | 0 | 아니오 | 제안 |
+| `zt/<기기>/pong` | face-detector → recorder | 0 | 아니오 | 제안 |
+
+log·ping·pong은 디버깅용이다. 보내지 않아도 서비스는 동작하고, 받는 쪽은 recorder 하나다 (`docs/logging-design.txt`).
 
 ## 공통
 
 - `<기기>`는 ESP32 보드마다 다른 ID다: `esp32-a`, `esp32-b`. face-detector는 `secrets.h`의 `DEVICE_ID`, player는 주소의 `?device=`, playback-decider는 `zt/+/…`로 모든 기기를 받는다.
+- `server`는 기기 ID로 쓰지 않는다. 기기와 상관없는 서버 로그의 `<기기>` 자리에 쓴다 (`zt/server/log/playback-decider`).
 - 본문은 모두 JSON 객체(UTF-8)다. 형식이 틀린 메시지는 받는 쪽이 버린다.
 - broker 주소: face-detector는 `<PC 내부 IP>:1883`, playback-decider는 `broker:1883`, player(브라우저)는 `ws://<페이지 주소>/mqtt`.
 
@@ -66,3 +72,44 @@ face-model을 한 번 실행할 때마다 하나. `running`일 때만, 최대 �
 
 - 명령이 바뀔 때만 보낸다. 같은 명령을 연달아 보내지 않는다.
 - 판정 기준(`PLAY_AFTER_MS` `PAUSE_AFTER_MS` `MIN_SCORE`)은 `.env`에 있다.
+
+## log — 모든 파트 → recorder
+
+토픽은 `zt/<기기>/log/<파트>`다. `<파트>`는 README의 파트 이름(`face-detector`, `playback-decider`, `player`)이다. 본문은 로그 한 줄의 칸과 같다 (`docs/logging-design.txt` 3-1).
+
+```json
+{ "level": "INFO", "logger": "zt.face-detector.wifi", "where": "face-detector.ino:62", "msg": "연결됨", "up_ms": 12345, "fields": { "ip": "172.30.1.57", "rssi_dbm": -48 } }
+{ "level": "WARNING", "logger": "zt.playback-decider.main", "where": "main.py:88", "msg": "seq 건너뜀", "ts_ms": 1793336707502, "fields": { "expected": 120, "got": 123, "lost": 3 } }
+```
+
+| 필드 | 형식 | 뜻 |
+|---|---|---|
+| `level` | `INFO` `WARNING` `ERROR` `CRITICAL` | `DEBUG`는 보내지 않는다 (시리얼·콘솔에서만) |
+| `logger` | 문자열 | `zt.<파트>.<모듈>`. 예: `zt.face-detector.wifi` |
+| `where` | 문자열 | 로그를 찍은 `파일:줄`. 브라우저는 `app.js:<함수 이름>` |
+| `msg` | 문자열 | 사람이 읽는 짧은 문장 |
+| `up_ms` | 정수 (없어도 됨) | ESP32 부팅 후 경과 시간 |
+| `ts_ms` | 정수 (없어도 됨) | PC에서 도는 파트가 보낸 시각 (Unix ms). 서버 쪽은 시계가 하나라 그대로 비교한다 |
+| `fields` | 객체 (없어도 됨) | `key=value`로 찍을 값. 값은 문자열·숫자·참/거짓·null. 단위는 키 끝에 (`_ms` `_kb` `_dbm` `_pct`) |
+
+- 프레임마다 보내지 않는다. 정상 흐름은 5초 요약만 보낸다. 본 작업을 늦추지 않게 QoS 0이고, 측정 구간 밖에서 보낸다.
+- 비밀번호·토큰·`.env` 값은 넣지 않는다. 키 이름에 `password` `token` `secret`이 들어간 값은 recorder가 앞 두 글자만 남기고 가린다.
+- 받은 시각은 recorder가 붙인다 (PC 시계). `ts_ms`가 있으면 그 시각을 쓴다.
+
+## ping — recorder → face-detector
+
+```json
+{ "id": 7 }
+```
+
+- recorder가 기기를 처음 봤을 때(`status`가 `idle`·`running`) 한 번, 그 뒤 30초마다 보낸다.
+- face-detector는 받은 본문을 그대로 바로 `pong`으로 돌려준다.
+
+## pong — face-detector → recorder
+
+```json
+{ "id": 7 }
+```
+
+- recorder가 ping을 보낸 시각과 pong을 받은 시각으로 왕복 시간 `rtt_ms`를 재고, `rtt_ms / 2`를 ESP32 → PC 한쪽 전송 지연으로 본다. 두 기기의 시계를 맞출 필요가 없다.
+- face-detector가 `loop()`에서 늦게 돌려주면 그만큼 커진다. 그래서 `rtt_ms`는 전송 지연의 상한으로 읽는다.

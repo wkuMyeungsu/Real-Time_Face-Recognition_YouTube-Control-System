@@ -29,6 +29,43 @@ title = "브라우저용 WebSocket (player /mqtt → broker:9001)"
 status = "done"
 
 
+# ── recorder (broker 담당: 로그 모으기, docs/logging-design.txt) ──
+[R1]
+part = "recorder"
+title = "/health"
+status = "done"
+
+[R2]
+part = "recorder"
+title = "받은 메시지를 logs/zt.log 한 줄 형식으로 (시각 밀리초·레벨·로거·위치)"
+status = "done"
+
+[R3]
+part = "recorder"
+title = "log 토픽을 보낸 파트의 레벨·로거·위치 그대로, 비밀값 가림"
+status = "done"
+
+[R4]
+part = "recorder"
+title = "face 원문은 zt.jsonl, zt.log에는 5초 요약 (받은 수·seq 건너뜀)"
+status = "done"
+
+[R5]
+part = "recorder"
+title = "ping → pong 왕복 rtt_ms"
+status = "done"
+
+[R6]
+part = "recorder"
+title = "끊긴 보드(LWT offline)를 WARNING으로"
+status = "done"
+
+[R7]
+part = "recorder"
+title = "broker 접속·끊김 로그도 같은 타임라인에 (zt.broker)"
+status = "done"
+
+
 # ── contracts ─────────────────────────────────────
 [C1]
 part = "contracts"
@@ -63,6 +100,11 @@ status = "done"
 [C7]
 part = "contracts"
 title = "기능 목록과 테스트가 서로 맞음"
+status = "done"
+
+[C8]
+part = "contracts"
+title = "Python 서비스의 log_config.py가 원본 common/log_config.py와 같음"
 status = "done"
 
 
@@ -122,6 +164,16 @@ part = "playback-decider"
 title = "형식이 틀린 메시지는 버리고 계속 동작"
 status = "done"
 
+[D12]
+part = "playback-decider"
+title = "판정 로그를 log 토픽으로 (action·reason·seq)"
+status = "todo"
+
+[D13]
+part = "playback-decider"
+title = "공통 로그 설정 (setup_logging, /health 요청 로그 끔)"
+status = "todo"
+
 
 # ── player ────────────────────────────────────────
 [P1]
@@ -164,6 +216,11 @@ part = "player"
 title = "playback → 유튜브 playVideo·pauseVideo"
 status = "todo"
 
+[P9]
+part = "player"
+title = "버튼·playback·유튜브 로그를 log 토픽으로 (zt.player.*)"
+status = "todo"
+
 
 # ── face-detector ─────────────────────────────────
 [F1]
@@ -180,6 +237,11 @@ status = "done"
 part = "face-detector"
 title = "토픽 이름과 LWT(offline, retain)가 계약대로"
 status = "done"
+
+[F4]
+part = "face-detector"
+title = "LOG 매크로, INFO 이상은 log 토픽으로, ping → pong"
+status = "todo"
 
 
 # ── face-model ────────────────────────────────────

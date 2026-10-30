@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "log: 모든 파트 → recorder (zt/<기기>/log/<파트>, QoS 0, INFO 이상만)",
+  "type": "object",
+  "required": [
+    "level",
+    "logger",
+    "where",
+    "msg"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "level": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ]
+    },
+    "logger": {
+      "type": "string",
+      "pattern": "^zt\\.[a-z0-9-]+(\\.[a-z0-9_-]+)*$"
+    },
+    "where": {
+      "type": "string",
+      "minLength": 1
+    },
+    "msg": {
+      "type": "string",
+      "minLength": 1
+    },
+    "up_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ts_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  }
+}

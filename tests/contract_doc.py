@@ -10,9 +10,9 @@ README = (CONTRACTS / "README.md").read_text(encoding="utf-8")
 
 
 def topic_table() -> dict[str, dict]:
-    """토픽 표: {종류: {"qos": 0|1, "retain": bool, "from_to": "..."}}"""
+    """토픽 표: {종류: {"qos": 0|1, "retain": bool, "from_to": "..."}}. `zt/<기기>/log/<파트>`의 종류는 log."""
     rows = {}
-    for m in re.finditer(r"^\|\s*`zt/<기기>/(\w+)`\s*\|([^|]*)\|\s*(\d)\s*\|\s*(예|아니오)\s*\|", README, re.M):
+    for m in re.finditer(r"^\|\s*`zt/<기기>/(\w+)(?:/<파트>)?`\s*\|([^|]*)\|\s*(\d)\s*\|\s*(예|아니오)\s*\|", README, re.M):
         kind, from_to, qos, retain = m.groups()
         rows[kind] = {"qos": int(qos), "retain": retain == "예", "from_to": from_to.strip()}
     return rows
