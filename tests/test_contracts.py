@@ -61,6 +61,8 @@ def test_esp32_environment_matches_ci():
     assert re.search(rf"name: esp32:esp32\s+source-url: \S+\s+version: {re.escape(core)}\b", ci), f"CI의 esp32 코어가 README({core})와 다름"
     for name, version in libs.items():
         assert re.search(rf"name: {name}\s+version: {re.escape(version)}\b", ci), f"CI의 {name} 버전이 README({version})와 다름"
+    if re.search(r"\| Tools → PSRAM \| OPI PSRAM", readme):  # 카메라에 필요. 빠지면 PSRAM 없이 컴파일된다
+        assert f"fqbn: {fqbn}:PSRAM=opi" in ci, "README는 OPI PSRAM인데 CI의 FQBN에 PSRAM=opi가 없음"
     cd = ROOT / ".github" / "workflows" / "cd.yml"
     if cd.is_file():  # 펌웨어 Release도 같은 환경으로 만든다
         text = cd.read_text(encoding="utf-8")
