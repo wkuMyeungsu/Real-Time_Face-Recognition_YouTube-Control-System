@@ -56,6 +56,13 @@ jobs:
           arduino-cli core update-index --additional-urls "$ESP32_INDEX"
           arduino-cli core install esp32:esp32@3.3.12 --additional-urls "$ESP32_INDEX"
           arduino-cli lib install PubSubClient@2.8 ArduinoJson@7.2.1
+      - name: 모델 라이브러리 설치 (CI와 같은 단계. fw 0.3.0부터 face_runner.cpp가 모델 라이브러리를 쓴다)
+        run: |
+          mkdir -p ~/Arduino/libraries
+          for z in device/face-model/*.zip; do
+            [ -e "$z" ] || { echo "모델 zip 없음"; break; }
+            unzip -q -o "$z" -d ~/Arduino/libraries
+          done
       - run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
       - name: 컴파일
         run: arduino-cli compile --fqbn "$FQBN" --output-dir build device/face-detector
