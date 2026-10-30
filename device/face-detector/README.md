@@ -28,7 +28,7 @@ python setup_arduino.py     # 보드를 USB로 꽂은 뒤
 
 | 단계 | 하는 일 | 빠졌을 때 |
 |---|---|---|
-| 1/3 | `sketch.yaml`의 esp32 코어·라이브러리를 Arduino IDE에 설치 (IDE에 들어 있는 arduino-cli를 쓴다) | IDE를 못 찾으면 환경 변수 `ARDUINO_CLI`에 arduino-cli 경로를 넣으라고 알려 준다 |
+| 1/3 | `sketch.yaml`의 esp32 코어·라이브러리와 `device/face-model/*.zip`(Edge Impulse 모델 라이브러리)을 Arduino IDE에 설치 (IDE에 들어 있는 arduino-cli를 쓴다) | IDE를 못 찾으면 환경 변수 `ARDUINO_CLI`에 arduino-cli 경로를 넣으라고 알려 준다 |
 | 2/3 | `.env`로 `secrets.h` 생성. `.env`가 없거나 Wi-Fi·broker 값이 비었으면 이 PC의 Wi-Fi 정보(SSID·비밀번호·IP)를 찾아 보여 주고, 확인을 받아 채운다. PC가 5G에 붙어 있으면 같은 공유기의 2G SSID를 고른다 | 찾지 못했거나 거절하면 어느 키를 직접 채울지 알려 준다 |
 | 3/3 | ESP32가 꽂힌 포트 표시 | 연결이 안 보이면 케이블·BOOT 버튼 확인을 안내한다 |
 

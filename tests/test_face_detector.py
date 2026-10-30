@@ -1,5 +1,6 @@
 """face-detector·face-model (F1~F4, M1). 보드 없이 파일만 본다. 컴파일은 CI의 face-detector 잡."""
 import re
+import zipfile
 
 import pytest
 
@@ -41,8 +42,13 @@ def test_topics_and_last_will_follow_contract():
 
 @pytest.mark.feature("M1")
 def test_edge_impulse_library():
-    libs = [p for p in (ROOT / "device" / "face-model").rglob("library.properties") if p.parent.name.endswith("_inferencing")]
-    assert libs, "device/face-model/<이름>_inferencing/library.properties가 없음 (Edge Impulse → Arduino library)"
+    """Edge Impulse에서 내보낸 Arduino library zip을 device/face-model/에 커밋한다. 설치는 setup_arduino.py·CI가 한다."""
+    zips = sorted((ROOT / "device" / "face-model").glob("*.zip"))
+    assert zips, "device/face-model/에 Edge Impulse Arduino library zip이 없음"
+    for z in zips:
+        with zipfile.ZipFile(z) as f:
+            libs = [n for n in f.namelist() if re.fullmatch(r"[^/]+_inferencing/library\.properties", n)]
+        assert libs, f"{z.name} 안에 <이름>_inferencing/library.properties가 없음 (Arduino library로 내보낸 zip인지)"
 
 
 @pytest.mark.feature("F4")
