@@ -64,6 +64,44 @@ def find_esp32_ports(board_list: dict) -> list[str]:
     return ports
 
 
+def fill_env_text(text: str, values: dict[str, str]) -> str:
+    """.env 내용에서 values에 있는 키의 값만 바꾼다. 주석과 다른 줄은 그대로 둔다."""
+    lines = []
+    for line in text.splitlines():
+        key = line.split("=", 1)[0].strip()
+        lines.append(f"{key}={values[key]}" if "=" in line and not line.lstrip().startswith("#") and key in values else line)
+    return "\n".join(lines) + "\n"
+
+
+def fill_env_from_this_pc() -> None:
+    """.env가 없거나 Wi-Fi·broker 값이 비었으면 이 PC의 Wi-Fi 정보로 채울지 묻는다."""
+    import detect_network
+    import gen_secrets
+
+    env_path, example_path = HERE / ".env", HERE / ".env.example"
+    text = (env_path if env_path.exists() else example_path).read_text(encoding="utf-8")
+    unfilled = gen_secrets.check_env(gen_secrets.read_env(env_path) if env_path.exists() else {}, gen_secrets.read_env(example_path))
+    detected = detect_network.detect()
+    found = {k: v for k, v in detected.items() if k in unfilled}
+    if not found:
+        return
+
+    print("  이 PC의 Wi-Fi 정보로 .env를 채울 수 있습니다 (broker를 이 PC에서 띄우는 경우).")
+    if found.get("WIFI_SSID") and found["WIFI_SSID"] != detected.get("PC_SSID"):
+        print("  PC는 5G에 붙어 있어 같은 공유기의 2G SSID를 골랐습니다 (ESP32-S3는 2.4GHz만 됩니다).")
+    for k, v in found.items():
+        print(f"    {k}={detect_network.mask(v) if k == 'WIFI_PASSWORD' else v}")
+    try:
+        answer = input("  이 값으로 .env를 채울까요? [Y/n] ").strip().lower()
+    except EOFError:  # 입력할 수 없는 환경(CI 등)
+        answer = "n"
+    if answer not in ("", "y", "yes"):
+        print("  채우지 않았습니다.")
+        return
+    env_path.write_text(fill_env_text(text, found), encoding="utf-8")
+    print(f"  {env_path}에 적었습니다.")
+
+
 def main() -> None:
     cli = find_cli()
     if not cli:
@@ -86,6 +124,7 @@ def main() -> None:
     print("[2/3] .env → secrets.h")
     import gen_secrets
 
+    fill_env_from_this_pc()
     secrets_ok = True
     try:
         gen_secrets.main()
