@@ -264,7 +264,7 @@ status = "todo"
 [M1]
 part = "face-model"
 title = "Edge Impulse 라이브러리 (device/face-model)"
-status = "todo"
+status = "done"
 
 
 # ── e2e ───────────────────────────────────────────

@@ -1,6 +1,6 @@
 """업로드 전 준비를 한 번에 한다. 실행: python setup_arduino.py
 
-1. sketch.yaml에 적힌 esp32 코어·라이브러리를 Arduino IDE에 설치한다.
+1. sketch.yaml에 적힌 esp32 코어·라이브러리와 device/face-model/의 모델 라이브러리 zip을 Arduino IDE에 설치한다.
 2. .env로 secrets.h를 만든다. .env가 없거나 값이 비어 있으면 무엇을 채울지 알려 준다.
 3. ESP32가 USB로 연결됐는지, 어느 포트인지 알려 준다.
 
@@ -13,11 +13,13 @@ import os
 import re
 import shutil
 import subprocess
+import zipfile
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 CLI_IN_IDE = Path("resources/app/lib/backend/resources")
+MODEL_DIR = HERE.parent / "face-model"  # Edge Impulse에서 내보낸 Arduino 라이브러리 zip을 face-model이 커밋하는 곳
 ESPRESSIF_VID = "0x303a"  # XIAO ESP32S3는 칩 내장 USB라 Espressif VID로 잡힌다
 
 
@@ -50,6 +52,36 @@ def run(cmd: list[str]) -> None:
     print("$", " ".join(cmd[1:]), flush=True)
     if subprocess.run(cmd).returncode != 0:
         sys.exit(f"실패: {' '.join(cmd[1:])}")
+
+
+def find_model_zips(model_dir: Path) -> list[Path]:
+    """face-model이 커밋한 모델 라이브러리 zip들. 없으면 빈 목록."""
+    return sorted(model_dir.glob("*.zip"))
+
+
+def library_version(properties: str) -> str | None:
+    m = re.search(r"^version=(.+)$", properties, re.M)
+    return m.group(1).strip() if m else None
+
+
+def install_library_zip(zip_path: Path, libraries_dir: Path) -> str:
+    """Arduino 라이브러리 zip을 libraries 폴더에 푼다 (IDE의 Add .ZIP Library와 같은 일).
+    같은 버전이 이미 있으면 그대로 두고, 다른 버전이면 그 라이브러리 폴더만 바꾼다. 설치한 "이름 버전"을 돌려준다."""
+    with zipfile.ZipFile(zip_path) as z:
+        props = [n for n in z.namelist() if re.fullmatch(r"[^/]+/library\.properties", n)]
+        if len(props) != 1:
+            raise ValueError(f"{zip_path.name}: Arduino 라이브러리 zip이 아닙니다 (최상위 폴더의 library.properties가 하나여야 함)")
+        name = props[0].split("/")[0]
+        version = library_version(z.read(props[0]).decode("utf-8", "replace"))
+        target = libraries_dir / name
+        installed = target / "library.properties"
+        if installed.exists() and library_version(installed.read_text(encoding="utf-8", errors="replace")) == version:
+            return f"{name} {version} (이미 설치됨)"
+        if target.exists():
+            shutil.rmtree(target)
+        libraries_dir.mkdir(parents=True, exist_ok=True)
+        z.extractall(libraries_dir, members=[n for n in z.namelist() if n.startswith(name + "/")])
+    return f"{name} {version}"
 
 
 def find_esp32_ports(board_list: dict) -> list[str]:
@@ -119,7 +151,20 @@ def main() -> None:
     for p in deps["platforms"]:
         run(base + ["core", "install", p] + urls)
     run(base + ["lib", "install"] + deps["libraries"])
-    print("  완료:", ", ".join(deps["platforms"] + deps["libraries"]))
+    zips = find_model_zips(MODEL_DIR)
+    models = []
+    if zips:
+        # IDE와 같은 스케치북의 libraries 폴더에 푼다
+        out = subprocess.run(base + ["config", "get", "directories.user"], capture_output=True, text=True)
+        libraries_dir = Path(out.stdout.strip()) / "libraries"
+        for z in zips:
+            try:
+                models.append(install_library_zip(z, libraries_dir))
+            except (ValueError, zipfile.BadZipFile) as e:
+                sys.exit(f"실패: {e}")
+    print("  완료:", ", ".join(deps["platforms"] + deps["libraries"] + models))
+    if not zips:
+        print(f"  모델 zip이 아직 없습니다 ({MODEL_DIR}/*.zip). face-model이 올리면 다시 실행하세요.")
 
     print("[2/3] .env → secrets.h")
     import gen_secrets
