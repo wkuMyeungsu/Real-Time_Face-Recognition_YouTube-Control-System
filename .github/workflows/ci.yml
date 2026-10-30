@@ -1,0 +1,89 @@
+# PR마다 두 가지를 검사한다. 둘 다 초록불이어야 dev·main에 병합된다 (브랜치 보호 규칙, docs/ci-setup-guide.txt).
+#   server        : compose 빌드 → 전체 기동(healthcheck 통과까지) → tests/ 폴더가 있는 서비스만 pytest
+#   face-detector : device/*/tests 가 있는 파트만 pytest → device/face-detector 스케치를 XIAO_ESP32S3용으로 컴파일 (업로드는 각자 PC에서)
+# CI는 검사를 담는 그릇이다. 테스트는 자기 서비스·파트 폴더의 tests/에 두면 이 파일을 고치지 않아도 돈다.
+name: ci
+
+on:
+  pull_request:
+  push:   # 모든 브랜치: 작업 브랜치에 올리는 순간 검사한다 (PR 전에 미리 알 수 있게). 결과는 커밋 옆 ✓·✗와 메일로 온다
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # 같은 브랜치·PR에 새 커밋이 오면 이전 실행을 취소한다. dev·main은 모든 커밋을 끝까지 검사한다
+  cancel-in-progress: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-24.04   # ubuntu-latest는 Ubuntu 26으로 옮겨 가는 중이라 버전을 고정한다
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build
+      - name: 전체 기동 (healthcheck 통과까지 기다린다)
+        run: docker compose up -d --wait --wait-timeout 120
+      - name: tests/ 가 있는 서비스만 pytest
+        run: |
+          for d in services/*/; do
+            s=$(basename "$d")
+            if [ -d "$d/tests" ]; then
+              echo "::group::$s"
+              docker compose run --rm --no-deps "$s" pytest -q
+              echo "::endgroup::"
+            fi
+          done
+      - name: 실패하면 로그
+        if: failure()
+        run: docker compose ps && docker compose logs --no-color --tail 200
+      - name: 정리
+        if: always()
+        run: docker compose down
+
+  face-detector:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # README "실행 (ESP32) → 개발 환경" 표와 같은 값
+      FQBN: esp32:esp32:XIAO_ESP32S3
+      ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: tests/ 가 있는 device 파트만 pytest (PC에서 도는 Python 코드)
+        run: |
+          for d in device/*/; do
+            if [ -d "$d/tests" ]; then
+              echo "::group::$(basename "$d")"
+              pip install pytest
+              if [ -f "$d/requirements-dev.txt" ]; then pip install -r "$d/requirements-dev.txt"; fi
+              (cd "$d" && python -m pytest -q tests)
+              echo "::endgroup::"
+            fi
+          done
+      - uses: arduino/setup-arduino-cli@v2
+      - uses: actions/cache@v4   # esp32 코어가 커서 한 번 받은 것을 다시 쓴다
+        with:
+          path: ~/.arduino15
+          key: arduino-esp32-3.3.12-PubSubClient-2.8-ArduinoJson-7.2.1
+      - name: esp32 코어·라이브러리 설치 (README 개발 환경 표와 같은 버전)
+        run: |
+          arduino-cli core update-index --additional-urls "$ESP32_INDEX" 2>&1 | tee /tmp/arduino.log
+          arduino-cli core install esp32:esp32@3.3.12 --additional-urls "$ESP32_INDEX" 2>&1 | tee -a /tmp/arduino.log
+          arduino-cli lib install PubSubClient@2.8 ArduinoJson@7.2.1 2>&1 | tee -a /tmp/arduino.log
+      - name: secrets.h 준비 (커밋하지 않는 파일이라 예시로 대신)
+        run: cp device/face-detector/secrets.example.h device/face-detector/secrets.h
+      - name: 컴파일 (업로드는 각자 PC에서)
+        run: arduino-cli compile --fqbn "$FQBN" --warnings default device/face-detector 2>&1 | tee -a /tmp/arduino.log
+      - name: 실패하면 오류를 PR 화면에 남기기
+        if: failure()
+        run: |
+          msg=$(grep -E "error|Error|fatal|not found|undefined" /tmp/arduino.log | tail -n 20 || true)
+          [ -n "$msg" ] || msg=$(tail -n 20 /tmp/arduino.log)
+          msg="${msg//'%'/'%25'}"; msg="${msg//$'\r'/'%0D'}"; msg="${msg//$'\n'/'%0A'}"
+          echo "::error title=face-detector 컴파일 실패::$msg"
